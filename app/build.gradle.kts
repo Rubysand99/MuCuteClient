@@ -13,7 +13,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mucheng.mucute.client"
+        applicationId = "com.rubysand.rubyclient"
         minSdk = 28
         //noinspection EditedTargetSdkVersion
         targetSdk = 35

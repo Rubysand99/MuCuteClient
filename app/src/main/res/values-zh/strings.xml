@@ -2,7 +2,7 @@
 <resources>
     <string name="home">主页</string>
     <string name="what_is_this">这是什么？</string>
-    <string name="introduction">MuCuteClient 是一款使用 MITM 技术实现的 Minecraft Bedrock 插件，提供各种实用功能，而无需修改游戏内存。</string>
+    <string name="introduction">RubyClient 是一款使用 MITM 技术实现的 Minecraft Bedrock 插件，提供各种实用功能，而无需修改游戏内存。</string>
     <string name="backend_introduction">简单几步实现 MITM 攻击。</string>
     <string name="recommended_version">推荐版本：%s</string>
     <string name="capturing_game_packets">正在捕获游戏数据包...</string>

@@ -63,33 +63,7 @@ fun AboutPageContent() {
                         onClick = {
                             val intent = Intent(
                                 Intent.ACTION_VIEW,
-                                "https://www.youtube.com/channel/$authId".toUri()
-                            )
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                stringResource(R.string.check_updates_and_news),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Icon(
-                                Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null
-                            )
-                        }
-                    }
-
-                    OutlinedCard(
-                        onClick = {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                "https://github.com/RadiantByte/MuCuteClient".toUri()
+                                "https://github.com/Rubysand99/MuCuteClient".toUri()
                             )
                             context.startActivity(intent)
                         },
@@ -112,27 +86,17 @@ fun AboutPageContent() {
                     }
 
                     OutlinedCard(
-                        onClick = {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                "https://discord.com/invite/XFVe5jJU5H".toUri()
-                            )
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
                     ) {
-                        Row(
-                            Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Column(Modifier.padding(15.dp)) {
                             Text(
-                                "Join our Discord Server",
+                                "RubyClient",
                                 style = MaterialTheme.typography.bodyLarge
                             )
-                            Icon(
-                                Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null
+                            Text(
+                                "Based on MuCuteClient by OpenMITM, licensed under GPLv3.",
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }

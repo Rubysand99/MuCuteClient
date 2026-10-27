@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name" translatable="false">MuCuteClient</string>
+    <string name="app_name" translatable="false">RubyClient</string>
     <string name="home">Главная</string>
     <string name="what_is_this">Что это?</string>
-    <string name="introduction">MuCuteClient - это клиент Minecraft Bedrock, который использует подход MITM, предоставляя различные утилиты для улучшения игрового процесса без модификации памяти игры.</string>
+    <string name="introduction">RubyClient - это клиент Minecraft Bedrock, который использует подход MITM, предоставляя различные утилиты для улучшения игрового процесса без модификации памяти игры.</string>
     <string name="backend" translatable="false">MuCuteRelay</string>
     <string name="backend_introduction">Установите перехват на основе MITM в несколько простых шагов.</string>
     <string name="minecraft" translatable="false">Minecraft</string>

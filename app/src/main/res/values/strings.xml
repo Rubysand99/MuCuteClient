@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name" translatable="false">MuCuteClient</string>
+    <string name="app_name" translatable="false">RubyClient</string>
     <string name="home">Home</string>
     <string name="what_is_this">What\'s this?</string>
-    <string name="introduction">MuCuteClient is a Minecraft Bedrock client that utilizes a MITM approach, providing various utilities to enhance the gameplay experience without modifying the game\'s memory.</string>
+    <string name="introduction">RubyClient is a Minecraft Bedrock client that utilizes a MITM approach, providing various utilities to enhance the gameplay experience without modifying the game\'s memory.</string>
     <string name="backend" translatable="false">MuCuteRelay</string>
     <string name="backend_introduction">Set up a MITM-based interception in a few simple steps.</string>
     <string name="minecraft" translatable="false">Minecraft</string>
