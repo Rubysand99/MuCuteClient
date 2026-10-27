@@ -363,7 +363,7 @@ fun SettingsPageContent() {
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("Import Config")
+                            Text(stringResource(R.string.import_config))
                         }
 
                         FilledTonalButton(
@@ -376,7 +376,7 @@ fun SettingsPageContent() {
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("Export Config")
+                            Text(stringResource(R.string.export_config))
                         }
                     }
                 }
@@ -405,10 +405,10 @@ fun SettingsPageContent() {
                                 OutlinedTextField(
                                     value = configFileName,
                                     onValueChange = { configFileName = it },
-                                    label = { Text("Configuration Name") },
+                                    label = { Text(stringResource(R.string.configuration_name)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
-                                    supportingText = { Text("The config will be saved as '$configFileName.json'") }
+                                    supportingText = { Text(stringResource(R.string.config_saved_as, configFileName)) }
                                 )
 
                                 Row(
@@ -422,7 +422,7 @@ fun SettingsPageContent() {
                                             configFileName = ""
                                         }
                                     ) {
-                                        Text("Cancel")
+                                        Text(stringResource(R.string.cancel))
                                     }
                                     Spacer(Modifier.width(8.dp))
                                     FilledTonalButton(
@@ -443,7 +443,7 @@ fun SettingsPageContent() {
                                         },
                                         enabled = configFileName.isNotBlank()
                                     ) {
-                                        Text("Save")
+                                        Text(stringResource(R.string.save))
                                     }
                                 }
                             }

@@ -70,11 +70,11 @@ class OverlayShortcutButton(
             shape = CircleShape,
             modifier = Modifier
                 .padding(5.dp)
-//                .border(
-//                    width = if (module.isEnabled) 2.dp else 0.dp, // Show border only when enabled
-//                    color = if (module.isEnabled) Color.Cyan else Color.Transparent, // Cyan border when enabled
-//                    shape = CircleShape
-//                )
+                .border(
+                    width = if (module.isEnabled) 2.dp else 0.dp,
+                    color = if (module.isEnabled) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    shape = CircleShape
+                )
                 .pointerInput(Unit) {
                     detectDragGestures { _, dragAmount ->
                         _layoutParams.x += (dragAmount.x).toInt()

@@ -4,6 +4,7 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,12 +14,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,9 @@ import androidx.compose.ui.util.fastForEach
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.ModuleContent
 import com.mucheng.mucute.client.ui.component.NavigationRailX
+import com.mucheng.mucute.client.ui.theme.NeonBrush
+import com.mucheng.mucute.client.ui.theme.NeonVerticalDivider
+import com.mucheng.mucute.client.ui.theme.neonRailItemColors
 
 class OverlayClickGUI : OverlayWindow() {
 
@@ -47,7 +51,7 @@ class OverlayClickGUI : OverlayWindow() {
             layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
 
-            dimAmount = 0.4f
+            dimAmount = 0.6f
             windowAnimations = android.R.style.Animation_Dialog
             width = WindowManager.LayoutParams.MATCH_PARENT
             height = WindowManager.LayoutParams.MATCH_PARENT
@@ -74,10 +78,14 @@ class OverlayClickGUI : OverlayWindow() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             ElevatedCard(
-                shape = MaterialTheme.shapes.medium,
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
                 modifier = Modifier
                     .padding(40.dp)
                     .fillMaxSize()
+                    .border(1.5.dp, NeonBrush, MaterialTheme.shapes.large)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -85,6 +93,7 @@ class OverlayClickGUI : OverlayWindow() {
             ) {
                 Row(Modifier.fillMaxSize()) {
                     NavigationRailX(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         windowInsets = WindowInsets(0, 0, 0, 0)
                     ) {
                         ModuleCategory.entries.fastForEach { moduleCategory ->
@@ -104,11 +113,12 @@ class OverlayClickGUI : OverlayWindow() {
                                 label = {
                                     Text(stringResource(moduleCategory.labelResId))
                                 },
-                                alwaysShowLabel = false
+                                alwaysShowLabel = false,
+                                colors = neonRailItemColors()
                             )
                         }
                     }
-                    VerticalDivider()
+                    NeonVerticalDivider()
                     DialogContent()
                 }
             }

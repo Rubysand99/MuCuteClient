@@ -15,7 +15,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -27,6 +26,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mucheng.mucute.client.R
 import com.mucheng.mucute.client.ui.component.NavigationRailX
+import com.mucheng.mucute.client.ui.theme.NeonVerticalDivider
+import com.mucheng.mucute.client.ui.theme.neonRailItemColors
 import com.mucheng.mucute.client.viewmodel.MainScreenViewModel
 
 @Immutable
@@ -71,6 +72,7 @@ fun MainScreen() {
             .fillMaxSize()
     ) {
         NavigationRailX(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             alignment = Alignment.Top
         ) {
             MainScreenPages.entries.fastForEach { page ->
@@ -83,11 +85,12 @@ fun MainScreen() {
                     },
                     icon = page.icon,
                     label = page.label,
-                    alwaysShowLabel = false
+                    alwaysShowLabel = false,
+                    colors = neonRailItemColors()
                 )
             }
         }
-        VerticalDivider()
+        NeonVerticalDivider()
         AnimatedContent(
             targetState = selectedPage,
             label = "animatedPage",

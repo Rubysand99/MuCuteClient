@@ -295,7 +295,7 @@ fun HomePageContent() {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("To join, go to Minecraft's Friends tab and join through LAN. If LAN doesn't show up, you can add a new server in the Servers tab by entering the IP address and port provided below, then press Play.")
+                        Text(stringResource(R.string.join_tip))
 
                         Text(
                             "IP Address:",
@@ -324,7 +324,7 @@ fun HomePageContent() {
                     TextButton(
                         onClick = { showConnectionDialog = false }
                     ) {
-                        Text("OK")
+                        Text(stringResource(R.string.ok))
                     }
                 }
             )
@@ -803,7 +803,7 @@ private fun TexturePackCard() {
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Import Data Packs")
+                Text(stringResource(R.string.import_data_packs))
             }
         }
     }

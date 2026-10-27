@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -25,7 +26,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.toArgb
 import java.io.File
 import kotlin.math.min
@@ -92,13 +92,13 @@ class OverlayButton : OverlayWindow() {
             onClick = {
                 OverlayManager.showOverlayWindow(overlayClickGUI)
             },
-            shape = RectangleShape,
+            shape = RoundedCornerShape(14.dp),
             modifier = Modifier
                 .size(48.dp)
                 .border(
                     width = 1.dp,
                     color = borderColor,
-                    shape = RectangleShape
+                    shape = RoundedCornerShape(14.dp)
                 )
                 .pointerInput(Unit) {
                     detectDragGestures { _, dragAmount ->

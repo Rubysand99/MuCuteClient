@@ -64,4 +64,14 @@
     <string name="fetch_account_successfully">Fetch account successfully</string>
     <string name="xbox_device_code">Xbox device code</string>
     <string name="refresh">Refresh</string>
+    <string name="import_config">Import Config</string>
+    <string name="export_config">Export Config</string>
+    <string name="configuration_name">Configuration Name</string>
+    <string name="config_saved_as">The config will be saved as \'%s.json\'</string>
+    <string name="save">Save</string>
+    <string name="ok">OK</string>
+    <string name="import_data_packs">Import Data Packs</string>
+    <string name="join_tip">To join, go to Minecraft\'s Friends tab and join through LAN. If LAN doesn\'t show up, you can add a new server in the Servers tab by entering the IP address and port provided below, then press Play.</string>
+    <string name="view_source">View Source on GitHub</string>
+    <string name="based_on">Based on MuCuteClient by OpenMITM, licensed under GPLv3.</string>
 </resources>

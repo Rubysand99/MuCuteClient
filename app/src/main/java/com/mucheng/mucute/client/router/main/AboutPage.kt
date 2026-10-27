@@ -75,7 +75,7 @@ fun AboutPageContent() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "View Source on GitHub",
+                                stringResource(R.string.view_source),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Icon(
@@ -95,7 +95,7 @@ fun AboutPageContent() {
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Text(
-                                "Based on MuCuteClient by OpenMITM, licensed under GPLv3.",
+                                stringResource(R.string.based_on),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.stringResource
 import com.mucheng.mucute.client.R
 import com.mucheng.mucute.client.util.LocalSnackbarHostState
 import com.mucheng.mucute.client.util.SnackbarHostStateScope
@@ -117,7 +118,7 @@ fun ServerPageContent() {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Servers") },
+                    title = { Text(stringResource(R.string.server)) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         titleContentColor = contentColorFor(MaterialTheme.colorScheme.surfaceContainer)
