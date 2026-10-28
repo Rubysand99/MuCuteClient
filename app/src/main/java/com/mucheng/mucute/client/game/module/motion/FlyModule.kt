@@ -68,9 +68,16 @@ class FlyModule : Module("fly", ModuleCategory.Motion) {
 
     private var canFly = false
 
-    // Vẫn phải chặn UpdateAbilities/RequestAbility và gửi gói tắt fly khi module đã tắt.
-    override val receivePacketsWhenDisabled: Boolean
-        get() = true
+    override fun onDisabled() {
+        super.onDisabled()
+        // Gửi gói tắt fly ngay khi tắt; từ đó server được cập nhật ability bình thường
+        // (trước đây module tắt vẫn chặn mọi UpdateAbilitiesPacket của server).
+        if (isSessionCreated && canFly) {
+            disableFlyAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
+            session.clientBound(disableFlyAbilitiesPacket)
+        }
+        canFly = false
+    }
 
     override fun onDisconnect(reason: String) {
         // Phiên mới chưa nhận ability fly nên phải gửi lại ở lần PlayerAuthInput tiếp theo.
@@ -78,6 +85,10 @@ class FlyModule : Module("fly", ModuleCategory.Motion) {
     }
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
+        if (!isEnabled) {
+            return
+        }
+
         val packet = interceptablePacket.packet
         if (packet is RequestAbilityPacket && packet.ability == Ability.FLYING) {
             interceptablePacket.intercept()
@@ -95,11 +106,6 @@ class FlyModule : Module("fly", ModuleCategory.Motion) {
                 enableFlyAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
                 session.clientBound(enableFlyAbilitiesPacket)
                 canFly = true
-            } else if (canFly && !isEnabled) {
-                disableFlyAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
-                session.clientBound(disableFlyAbilitiesPacket)
-                canFly = false
-                return
             }
 
             // Handle vertical movement when enabled

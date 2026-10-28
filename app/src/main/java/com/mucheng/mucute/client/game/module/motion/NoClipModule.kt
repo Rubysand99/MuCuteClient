@@ -69,9 +69,16 @@ class NoClipModule : Module("no_clip", ModuleCategory.Motion) {
 
     private var noClipEnabled = false
 
-    // Vẫn phải chặn UpdateAbilities/RequestAbility và gửi gói tắt no-clip khi module đã tắt.
-    override val receivePacketsWhenDisabled: Boolean
-        get() = true
+    override fun onDisabled() {
+        super.onDisabled()
+        // Gửi gói tắt no-clip ngay khi tắt; từ đó server được cập nhật ability bình thường
+        // (trước đây module tắt vẫn chặn mọi UpdateAbilitiesPacket của server).
+        if (isSessionCreated && noClipEnabled) {
+            disableNoClipAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
+            session.clientBound(disableNoClipAbilitiesPacket)
+        }
+        noClipEnabled = false
+    }
 
     override fun onDisconnect(reason: String) {
         // Phiên mới chưa nhận ability no-clip nên phải gửi lại ở lần PlayerAuthInput tiếp theo.
@@ -79,6 +86,10 @@ class NoClipModule : Module("no_clip", ModuleCategory.Motion) {
     }
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
+        if (!isEnabled) {
+            return
+        }
+
         val packet = interceptablePacket.packet
         if (packet is RequestAbilityPacket && packet.ability == Ability.NO_CLIP) {
             interceptablePacket.intercept()
@@ -95,11 +106,6 @@ class NoClipModule : Module("no_clip", ModuleCategory.Motion) {
                 enableNoClipAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
                 session.clientBound(enableNoClipAbilitiesPacket)
                 noClipEnabled = true
-            } else if (noClipEnabled && !isEnabled) {
-                disableNoClipAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
-                session.clientBound(disableNoClipAbilitiesPacket)
-                noClipEnabled = false
-                return
             }
 
             if (isEnabled) {
