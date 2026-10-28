@@ -4,6 +4,8 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -137,5 +139,16 @@ fun NeonVerticalDivider(modifier: Modifier = Modifier) {
             .fillMaxHeight()
             .width(1.5.dp)
             .background(NeonVerticalBrush)
+    )
+}
+
+/** Đường kẻ ngang phát sáng gradient tím – hồng – xanh. */
+@Composable
+fun NeonHorizontalDivider(modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(1.5.dp)
+            .background(NeonBrush)
     )
 }

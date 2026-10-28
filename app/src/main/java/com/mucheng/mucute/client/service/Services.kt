@@ -108,7 +108,7 @@ object Services {
                 }
             }.exceptionOrNull()?.let {
                 it.printStackTrace()
-                context.toast("Start MuCuteRelay error: ${it.stackTraceToString()}")
+                context.toast("Start relay error: ${it.stackTraceToString()}")
             }
 
         }

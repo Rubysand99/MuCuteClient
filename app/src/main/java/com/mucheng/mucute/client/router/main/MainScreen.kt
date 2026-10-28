@@ -3,7 +3,13 @@ package com.mucheng.mucute.client.router.main
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.Help
@@ -13,21 +19,19 @@ import androidx.compose.material.icons.twotone.Settings
 import androidx.compose.material.icons.twotone.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mucheng.mucute.client.R
-import com.mucheng.mucute.client.ui.component.NavigationRailX
-import com.mucheng.mucute.client.ui.theme.NeonVerticalDivider
-import com.mucheng.mucute.client.ui.theme.neonRailItemColors
+import com.mucheng.mucute.client.ui.component.NeonTab
+import com.mucheng.mucute.client.ui.component.NeonTabBar
+import com.mucheng.mucute.client.ui.theme.NeonHorizontalDivider
 import com.mucheng.mucute.client.viewmodel.MainScreenViewModel
 
 @Immutable
@@ -63,20 +67,22 @@ enum class MainScreenPages(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen() {
     val mainScreenViewModel: MainScreenViewModel = viewModel()
     val selectedPage by mainScreenViewModel.selectedPage.collectAsStateWithLifecycle()
-    Row(
+    Column(
         Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+            )
     ) {
-        NavigationRailX(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            alignment = Alignment.Top
-        ) {
+        NeonTabBar {
             MainScreenPages.entries.fastForEach { page ->
-                NavigationRailItem(
+                NeonTab(
                     selected = selectedPage === page,
                     onClick = {
                         if (selectedPage !== page) {
@@ -84,13 +90,11 @@ fun MainScreen() {
                         }
                     },
                     icon = page.icon,
-                    label = page.label,
-                    alwaysShowLabel = false,
-                    colors = neonRailItemColors()
+                    label = page.label
                 )
             }
         }
-        NeonVerticalDivider()
+        NeonHorizontalDivider()
         AnimatedContent(
             targetState = selectedPage,
             label = "animatedPage",

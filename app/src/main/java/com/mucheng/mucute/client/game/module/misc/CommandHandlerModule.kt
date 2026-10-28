@@ -81,7 +81,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
                     if (module != null && !module.private) {
                         module.isEnabled = !module.isEnabled
                     } else {
-                        session.displayClientMessage("§l§b[MuCuteClient] §r§cModule not found: §f$command")
+                        session.displayClientMessage("§l§b[RubyClient] §r§cModule not found: §f$command")
                     }
                 }
             }
@@ -90,7 +90,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
 
     private fun displayHelp(category: String?) {
         val header = """
-            §l§b[MuCuteClient] §r§7Module List
+            §l§b[RubyClient] §r§7Module List
             §7Commands:
             §f.help <category> §7- View modules in a category
             §f.<module> §7- Toggle a module

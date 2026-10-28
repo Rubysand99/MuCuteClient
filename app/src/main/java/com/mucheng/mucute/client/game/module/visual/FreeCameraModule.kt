@@ -85,7 +85,7 @@ class FreeCameraModule : Module("free_camera", ModuleCategory.Visual) {
 
             GlobalScope.launch {
                 for (i in 5 downTo 1) {
-                    val countdownMessage = "§l§b[MuCute] §r§7FreeCam will enable in §e$i §7seconds"
+                    val countdownMessage = "§l§b[RubyClient] §r§7FreeCam will enable in §e$i §7seconds"
                     sendCountdownMessage(countdownMessage)
                     delay(1000)
                 }
