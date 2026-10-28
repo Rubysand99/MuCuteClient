@@ -11,6 +11,9 @@ object TranslationManager {
 
     private fun en() = buildMap {
         put("hud", "HUD")
+        put("nametags", "Nametags")
+        put("show_health", "Show Health")
+        put("scale_with_distance", "Scale With Distance")
         put("breadcrumbs", "Breadcrumbs")
         put("max_points", "Max Points")
         put("min_distance", "Min Distance")

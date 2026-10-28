@@ -19,6 +19,7 @@
 - **Waypoints**: Mark locations per server and dimension with `.waypoint add|remove|list|goto|clear`, shown on screen with distance. Death points are saved automatically, and `.waypoint goto <name>` walks there using Baritone.
 - **Friends**: `.friend add|remove|list|clear <name>`. Auto-attack modules skip friends and ESP highlights them in green.
 - **Breadcrumbs**: Draws a fading trail of where you have walked.
+- **Nametags**: Large readable name tags above players with distance and a health bar (when the server sends health), scaled by distance.
 - **Module Search & Favorites**: Search modules by name and pin favorites (★) to the top of the menu.
 - **Cross-Platform Support**: Compatible with all **Minecraft Bedrock Edition** platforms via Android MITM control.
 

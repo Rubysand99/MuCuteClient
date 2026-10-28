@@ -73,6 +73,7 @@ import com.mucheng.mucute.client.game.module.visual.BreadcrumbsModule
 import com.mucheng.mucute.client.game.module.visual.ESPModule
 import com.mucheng.mucute.client.game.module.visual.FreeCameraModule
 import com.mucheng.mucute.client.game.module.visual.HudModule
+import com.mucheng.mucute.client.game.module.visual.NametagsModule
 import com.mucheng.mucute.client.game.module.visual.NetworkInfoModule
 import com.mucheng.mucute.client.game.module.visual.NoHurtCameraModule
 import com.mucheng.mucute.client.game.module.visual.PositionDisplayModule
@@ -191,6 +192,7 @@ object ModuleManager {
             add(HudModule())
             add(WaypointModule())
             add(BreadcrumbsModule())
+            add(NametagsModule())
         }
         refreshActiveModules()
     }
