@@ -96,6 +96,16 @@ class OverlayShortcutButton(
         }
     }
 
+    /**
+     * Đặt vị trí nút (toạ độ màn hình, px) và ghi nhớ vào module. Gọi trước khi hiện nút;
+     * nếu cửa sổ đang hiện thì vị trí được cập nhật ở lần kéo/vẽ tiếp theo.
+     */
+    fun moveTo(x: Int, y: Int) {
+        _layoutParams.x = x
+        _layoutParams.y = y
+        updateShortcut()
+    }
+
     private fun updateShortcut() {
         module.shortcutX = _layoutParams.x
         module.shortcutY = _layoutParams.y

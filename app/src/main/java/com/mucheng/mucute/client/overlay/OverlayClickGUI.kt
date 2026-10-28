@@ -39,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import com.mucheng.mucute.client.game.FavoriteManager
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.ModuleContent
 import com.mucheng.mucute.client.ui.component.NavigationRailX
@@ -214,6 +215,14 @@ class OverlayClickGUI : OverlayWindow() {
                 selected = favoritesOnly,
                 onClick = { favoritesOnly = !favoritesOnly },
                 label = { Text("\u2605") }
+            )
+            Spacer(Modifier.width(8.dp))
+            // Hiện/ẩn nút tắt/bật nhanh trên màn hình cho mọi module yêu thích (★).
+            FilterChip(
+                selected = FavoriteManager.areAllShortcutsShown(),
+                enabled = FavoriteManager.favoriteModules().isNotEmpty(),
+                onClick = { FavoriteManager.toggleFavoriteShortcuts() },
+                label = { Text("\u26A1") }
             )
         }
     }
