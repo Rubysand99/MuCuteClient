@@ -76,8 +76,39 @@ private fun fetchCachedModules(moduleCategory: ModuleCategory): List<Module> {
     return cachedModules
 }
 
+/**
+ * Lọc danh sách hiển thị: có từ khoá thì tìm trên mọi module (tên gốc hoặc tên đã dịch),
+ * ngược lại hiện module của danh mục. Module yêu thích luôn đứng đầu (giữ nguyên thứ tự còn lại).
+ * Hàm này đọc state của FavoriteManager nên phải gọi trong composition.
+ */
+private fun filterModules(
+    categoryModules: List<Module>,
+    query: String,
+    favoritesOnly: Boolean
+): List<Module> {
+    val keyword = query.trim()
+    val source = if (keyword.isEmpty()) {
+        categoryModules
+    } else {
+        ModuleManager.modules.filter { !it.private }
+    }
+
+    return source
+        .filter { module ->
+            (!favoritesOnly || FavoriteManager.isFavorite(module.name)) &&
+                    (keyword.isEmpty() ||
+                            module.name.contains(keyword, ignoreCase = true) ||
+                            module.name.translatedSelf.contains(keyword, ignoreCase = true))
+        }
+        .sortedByDescending { FavoriteManager.isFavorite(it.name) }
+}
+
 @Composable
-fun ModuleContent(moduleCategory: ModuleCategory) {
+fun ModuleContent(
+    moduleCategory: ModuleCategory,
+    query: String = "",
+    favoritesOnly: Boolean = false
+) {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val columnCount = sharedPreferences.getInt("module_columns", 3)
@@ -90,9 +121,20 @@ fun ModuleContent(moduleCategory: ModuleCategory) {
         }
     }
 
-    Crossfade(targetState = modules) {
-        if (it != null) {
+    Crossfade(targetState = modules) { loaded ->
+        if (loaded != null) {
+            val visible = filterModules(loaded, query, favoritesOnly)
+
             Box(Modifier.fillMaxSize()) {
+                if (visible.isEmpty()) {
+                    Text(
+                        "no_modules_found".translatedSelf,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
                 Row(
                     Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -104,7 +146,7 @@ fun ModuleContent(moduleCategory: ModuleCategory) {
                             contentPadding = PaddingValues(vertical = 10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            val columnModules = it.filterIndexed { index, _ ->
+                            val columnModules = visible.filterIndexed { index, _ ->
                                 index % columnCount == columnIndex
                             }
 
@@ -158,6 +200,22 @@ private fun ModuleCard(module: Module) {
                 modifier = Modifier
                     .padding(10.dp)
             ) {
+                val favorite = FavoriteManager.isFavorite(module.name)
+                Text(
+                    if (favorite) "\u2605" else "\u2606",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            FavoriteManager.toggle(module.name)
+                        }
+                        .padding(end = 8.dp),
+                    color = if (favorite) Color(0xFFFFC107) else if (module.isExpanded) contentColorFor(
+                        MaterialTheme.colorScheme.primary
+                    ) else contentColorFor(MaterialTheme.colorScheme.background)
+                )
                 Text(
                     module.name.translatedSelf,
                     style = MaterialTheme.typography.titleMedium,

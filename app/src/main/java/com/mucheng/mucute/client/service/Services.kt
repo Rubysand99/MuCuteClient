@@ -15,6 +15,7 @@ import com.mucheng.mucute.client.game.AccountManager
 import com.mucheng.mucute.client.game.GameSession
 import com.mucheng.mucute.client.game.ModuleManager
 import com.mucheng.mucute.client.game.module.visual.ESPModule
+import com.mucheng.mucute.client.game.world.WaypointManager
 import com.mucheng.mucute.client.model.CaptureModeModel
 import com.mucheng.mucute.client.overlay.OverlayManager
 import com.mucheng.mucute.client.render.RenderOverlayView
@@ -85,6 +86,8 @@ object Services {
                 it.printStackTrace()
                 context.toast("Load block palette error: ${it.message}")
             }
+
+            WaypointManager.setServer(captureModeModel.serverHostName, captureModeModel.serverPort)
 
             val selectedAccount = AccountManager.selectedAccount
             // Start MuCuteRelay to capture game packets

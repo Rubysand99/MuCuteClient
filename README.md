@@ -14,6 +14,10 @@
 - **Advanced Packet Control**: Enables in-depth control and manipulation of packet-level data.  
 - **Smooth Performance**: Designed for stable connections and low-lag interaction.  
 - **User-Friendly Interface**: Clean and intuitive UI built for mobile usability.  
+- **HUD**: On-screen module list (ArrayList), coordinates, facing direction and nearby player count, with optional rainbow colors.
+- **Config Profiles**: Save and switch between named setups in-game with `.config save|load|delete|list <name>`.
+- **Waypoints**: Mark locations per server and dimension with `.waypoint add|remove|list|goto|clear`, shown on screen with distance. Death points are saved automatically, and `.waypoint goto <name>` walks there using Baritone.
+- **Module Search & Favorites**: Search modules by name and pin favorites (★) to the top of the menu.
 - **Cross-Platform Support**: Compatible with all **Minecraft Bedrock Edition** platforms via Android MITM control.
 
 ---

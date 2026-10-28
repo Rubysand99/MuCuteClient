@@ -11,6 +11,7 @@ import org.cloudburstmc.protocol.bedrock.data.SoundEvent
 import org.cloudburstmc.protocol.bedrock.data.inventory.transaction.InventoryTransactionType
 import org.cloudburstmc.protocol.bedrock.packet.AnimatePacket
 import org.cloudburstmc.protocol.bedrock.packet.BedrockPacket
+import org.cloudburstmc.protocol.bedrock.packet.ChangeDimensionPacket
 import org.cloudburstmc.protocol.bedrock.packet.ContainerClosePacket
 import org.cloudburstmc.protocol.bedrock.packet.ContainerOpenPacket
 import org.cloudburstmc.protocol.bedrock.packet.InventoryTransactionPacket
@@ -48,6 +49,11 @@ class LocalPlayer(val session: GameSession) : Player(0L, 0L, UUID.randomUUID(), 
     var openContainer: AbstractInventory? = null
         private set
 
+    /** 0 = Overworld, 1 = Nether, 2 = End. */
+    @Volatile
+    var dimension = 0
+        private set
+
     override fun onPacketBound(packet: BedrockPacket) {
         super.onPacketBound(packet)
         if (packet is StartGamePacket) {
@@ -60,8 +66,12 @@ class LocalPlayer(val session: GameSession) : Player(0L, 0L, UUID.randomUUID(), 
             inventoriesServerAuthoritative = packet.isInventoriesServerAuthoritative
             blockBreakServerAuthoritative = packet.isServerAuthoritativeBlockBreaking
             soundServerAuthoritative = packet.networkPermissions.isServerAuthSounds
+            dimension = packet.dimensionId
 
             reset()
+        }
+        if (packet is ChangeDimensionPacket) {
+            dimension = packet.dimension
         }
         if (packet is PlayerAuthInputPacket) {
             move(packet.position)

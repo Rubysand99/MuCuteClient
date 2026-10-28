@@ -10,22 +10,31 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -33,6 +42,8 @@ import androidx.compose.ui.util.fastForEach
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.ModuleContent
 import com.mucheng.mucute.client.ui.component.NavigationRailX
+import com.mucheng.mucute.client.util.translatedSelf
+import kotlinx.coroutines.delay
 
 class OverlayClickGUI : OverlayWindow() {
 
@@ -58,6 +69,35 @@ class OverlayClickGUI : OverlayWindow() {
         get() = _layoutParams
 
     private var selectedModuleCategory by mutableStateOf(ModuleCategory.Combat)
+
+    private var searchQuery by mutableStateOf("")
+
+    private var favoritesOnly by mutableStateOf(false)
+
+    private var searchFocused by mutableStateOf(false)
+
+    /**
+     * Cửa sổ overlay mặc định không nhận focus (để không cướp thao tác của game), nên chỉ bật focus
+     * trong lúc người dùng gõ vào ô tìm kiếm để bàn phím hiện được.
+     */
+    private fun setWindowFocusable(focusable: Boolean) {
+        val params = _layoutParams
+        val flags = if (focusable) {
+            params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        } else {
+            params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        if (flags == params.flags) return
+
+        params.flags = flags
+        try {
+            if (composeView.isAttachedToWindow) {
+                windowManager.updateViewLayout(composeView, params)
+            }
+        } catch (_: Exception) {
+            // Cửa sổ đã bị gỡ: cờ đã được cập nhật cho lần hiện sau.
+        }
+    }
 
     @Composable
     override fun Content() {
@@ -117,16 +157,64 @@ class OverlayClickGUI : OverlayWindow() {
 
     @Composable
     private fun DialogContent() {
-        AnimatedContent(
-            targetState = selectedModuleCategory,
-            label = "animatedPage",
-            modifier = Modifier
+        Column(
+            Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surfaceContainer)
-        ) { moduleCategory ->
-            Box(Modifier.fillMaxSize()) {
-                ModuleContent(moduleCategory)
+        ) {
+            SearchBar()
+            AnimatedContent(
+                targetState = selectedModuleCategory,
+                label = "animatedPage",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) { moduleCategory ->
+                Box(Modifier.fillMaxSize()) {
+                    ModuleContent(moduleCategory, searchQuery, favoritesOnly)
+                }
             }
+        }
+    }
+
+    @Composable
+    private fun SearchBar() {
+        val keyboardController = LocalSoftwareKeyboardController.current
+
+        LaunchedEffect(searchFocused) {
+            setWindowFocusable(searchFocused)
+            if (searchFocused) {
+                // Chờ cửa sổ nhận focus rồi mới yêu cầu hiện bàn phím.
+                delay(200)
+                keyboardController?.show()
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose { setWindowFocusable(false) }
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 10.dp, end = 10.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                singleLine = true,
+                placeholder = { Text("search_modules".translatedSelf) },
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { searchFocused = it.isFocused }
+            )
+            Spacer(Modifier.width(8.dp))
+            FilterChip(
+                selected = favoritesOnly,
+                onClick = { favoritesOnly = !favoritesOnly },
+                label = { Text("\u2605") }
+            )
         }
     }
 

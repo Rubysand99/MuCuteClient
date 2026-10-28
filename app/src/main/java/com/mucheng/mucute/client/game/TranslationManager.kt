@@ -10,6 +10,19 @@ object TranslationManager {
     }
 
     private fun en() = buildMap {
+        put("hud", "HUD")
+        put("search_modules", "Search modules")
+        put("no_modules_found", "No modules found")
+        put("waypoints", "Waypoints")
+        put("death_waypoint", "Death Waypoint")
+        put("max_distance", "Max Distance")
+        put("show_module_list", "Module List")
+        put("show_coordinates", "Coordinates")
+        put("show_direction", "Direction")
+        put("show_nearby_players", "Nearby Players")
+        put("right_align", "Right Align")
+        put("rainbow", "Rainbow")
+        put("text_size", "Text Size")
         put("fly", "Fly")
         put("no_clip", "No Clip")
         put("zoom", "Zoom")

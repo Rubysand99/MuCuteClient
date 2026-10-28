@@ -71,10 +71,12 @@ import com.mucheng.mucute.client.game.module.particle.FizzParticleModule
 import com.mucheng.mucute.client.game.module.particle.HeartParticleModule
 import com.mucheng.mucute.client.game.module.visual.ESPModule
 import com.mucheng.mucute.client.game.module.visual.FreeCameraModule
+import com.mucheng.mucute.client.game.module.visual.HudModule
 import com.mucheng.mucute.client.game.module.visual.NetworkInfoModule
 import com.mucheng.mucute.client.game.module.visual.NoHurtCameraModule
 import com.mucheng.mucute.client.game.module.visual.PositionDisplayModule
 import com.mucheng.mucute.client.game.module.visual.SpeedDisplayModule
+import com.mucheng.mucute.client.game.module.visual.WaypointModule
 import com.mucheng.mucute.client.game.module.visual.WorldStateModule
 import com.mucheng.mucute.client.game.module.visual.ZoomModule
 import kotlinx.serialization.json.Json
@@ -185,6 +187,8 @@ object ModuleManager {
             add(WorldStateModule())
             add(ReplayModule())
             add(BaritoneModule())
+            add(HudModule())
+            add(WaypointModule())
         }
         refreshActiveModules()
     }
@@ -205,12 +209,15 @@ object ModuleManager {
             })
         }
 
-        // Ghi ra file tạm rồi đổi tên để file cấu hình không bị cụt nếu app bị tắt giữa chừng.
-        val text = json.encodeToString(jsonObject)
-        val tempFile = configsDir.resolve("UserConfig.json.tmp")
+        writeAtomically(config, json.encodeToString(jsonObject))
+    }
+
+    /** Ghi ra file tạm rồi đổi tên để file không bị cụt nếu app bị tắt giữa chừng. */
+    private fun writeAtomically(target: File, text: String) {
+        val tempFile = File(target.parentFile, target.name + ".tmp")
         tempFile.writeText(text)
-        if (!tempFile.renameTo(config)) {
-            config.writeText(text)
+        if (!tempFile.renameTo(target)) {
+            target.writeText(text)
             tempFile.delete()
         }
     }
@@ -272,6 +279,49 @@ object ModuleManager {
         } catch (e: Exception) {
             throw IllegalArgumentException("Invalid config format")
         }
+    }
+
+
+    // ---- Profile cấu hình (nhiều bộ cấu hình đặt tên, dùng qua lệnh .config) ----
+
+    private val profileNameRegex = Regex("^[A-Za-z0-9_-]{1,32}$")
+
+    fun isValidProfileName(name: String) = profileNameRegex.matches(name)
+
+    private fun profilesDir(): File {
+        return AppContext.instance.filesDir.resolve("profiles").also { it.mkdirs() }
+    }
+
+    private fun profileFile(name: String): File {
+        require(isValidProfileName(name)) { "Invalid profile name" }
+        return profilesDir().resolve("$name.json")
+    }
+
+    fun listProfiles(): List<String> {
+        return profilesDir()
+            .listFiles { file -> file.isFile && file.extension == "json" }
+            ?.map { it.nameWithoutExtension }
+            ?.sorted()
+            ?: emptyList()
+    }
+
+    fun saveProfile(name: String) {
+        writeAtomically(profileFile(name), exportConfig())
+    }
+
+    /** Trả về false nếu profile không tồn tại; ném IllegalArgumentException nếu file hỏng. */
+    fun loadProfile(name: String): Boolean {
+        val file = profileFile(name)
+        if (!file.exists()) {
+            return false
+        }
+        importConfig(file.readText())
+        return true
+    }
+
+    fun deleteProfile(name: String): Boolean {
+        val file = profileFile(name)
+        return file.exists() && file.delete()
     }
 
     fun exportConfigToFile(context: Context, fileName: String): Boolean {

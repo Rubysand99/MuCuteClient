@@ -10,12 +10,11 @@ import com.mucheng.mucute.client.game.Module
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.entity.Entity
 import com.mucheng.mucute.client.game.entity.Player
+import com.mucheng.mucute.client.render.OverlayRenderer
 import com.mucheng.mucute.client.render.RenderOverlayView
-import org.cloudburstmc.math.matrix.Matrix4f
-import kotlin.math.cos
-import kotlin.math.sin
+import com.mucheng.mucute.client.render.WorldProjector
 
-class ESPModule : Module("esp", ModuleCategory.Visual) {
+class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     companion object {
         private var renderView: RenderOverlayView? = null
 
@@ -86,16 +85,11 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
     private val bgRect = RectF()
     private val infoBuilder = StringBuilder()
 
-    // Hàng 0, 1 và 3 của ma trận view-projection (mỗi hàng 4 số).
-    private val viewProj = FloatArray(12)
+    private val projector = WorldProjector()
 
     // Toạ độ màn hình của các đỉnh nhìn thấy được (đã dồn lại, tối đa 8 đỉnh).
     private val screenX = FloatArray(8)
     private val screenY = FloatArray(8)
-
-    // Kết quả của project().
-    private var projX = 0f
-    private var projY = 0f
 
     private val lineBuffer = FloatArray(BOX_EDGES.size * 2)
     private val cornerX = FloatArray(4)
@@ -107,55 +101,16 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
 
     override fun onEnabled() {
         super.onEnabled()
-        renderView?.invalidate()
+        RenderOverlayView.requestRender()
     }
 
     override fun onDisabled() {
         super.onDisabled()
-        renderView?.invalidate()
+        RenderOverlayView.requestRender()
     }
 
-    private fun rotateX(angle: Float): Matrix4f {
-        val rad = Math.toRadians(angle.toDouble())
-        val c = cos(rad).toFloat()
-        val s = sin(rad).toFloat()
-
-        return Matrix4f.from(
-            1f, 0f, 0f, 0f,
-            0f, c, -s, 0f,
-            0f, s, c, 0f,
-            0f, 0f, 0f, 1f
-        )
-    }
-
-    private fun rotateY(angle: Float): Matrix4f {
-        val rad = Math.toRadians(angle.toDouble())
-        val c = cos(rad).toFloat()
-        val s = sin(rad).toFloat()
-
-        return Matrix4f.from(
-            c, 0f, s, 0f,
-            0f, 1f, 0f, 0f,
-            -s, 0f, c, 0f,
-            0f, 0f, 0f, 1f
-        )
-    }
-
-    /**
-     * Chiếu một điểm trong thế giới lên màn hình, kết quả nằm ở projX/projY.
-     * Trả về false nếu điểm nằm sau camera.
-     */
-    private fun project(x: Float, y: Float, z: Float, screenWidth: Int, screenHeight: Int): Boolean {
-        val m = viewProj
-        val w = m[8] * x + m[9] * y + m[10] * z + m[11]
-        if (w < 0.01f) return false
-
-        val inverseW = 1f / w
-
-        projX = screenWidth / 2f + (0.5f * ((m[0] * x + m[1] * y + m[2] * z + m[3]) * inverseW) * screenWidth + 0.5f)
-        projY = screenHeight / 2f - (0.5f * ((m[4] * x + m[5] * y + m[6] * z + m[7]) * inverseW) * screenHeight + 0.5f)
-        return true
-    }
+    override val isRendering: Boolean
+        get() = isEnabled && isSessionCreated
 
     private fun shouldRenderEntity(entity: Entity): Boolean {
         if (entity == session.localPlayer) return false
@@ -163,8 +118,8 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
         return true
     }
 
-    fun render(canvas: Canvas) {
-        if (!isEnabled || !isSessionCreated) return  // isSessionCreated check
+    override fun render(canvas: Canvas) {
+        if (!isRendering) return
 
         val player = session.localPlayer
         val entities = session.level.entityMap.values
@@ -174,18 +129,14 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
         val screenWidth = canvas.width
         val screenHeight = canvas.height
 
-        val viewProjMatrix = Matrix4f.createPerspective(fov,
-            screenWidth.toFloat() / screenHeight, 0.1f, 128f)
-            .mul(Matrix4f.createTranslation(player.vec3Position)
-                .mul(rotateY(-player.rotationYaw - 180))
-                .mul(rotateX(-player.rotationPitch))
-                .invert())
-
-        for (column in 0 until 4) {
-            viewProj[column] = viewProjMatrix.get(0, column)
-            viewProj[4 + column] = viewProjMatrix.get(1, column)
-            viewProj[8 + column] = viewProjMatrix.get(3, column)
-        }
+        projector.update(
+            player.vec3Position,
+            player.rotationYaw,
+            player.rotationPitch,
+            fov,
+            screenWidth,
+            screenHeight
+        )
 
         boxPaint.strokeWidth = strokeWidth
         boxPaint.color = Color.rgb(colorRed, colorGreen, colorBlue)
@@ -219,16 +170,18 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
             val vy = if (corner == 1 || corner == 2) yTop else yBottom
             val vz = if (i >= 4) z + half else z - half
 
-            if (!project(vx, vy, vz, screenWidth, screenHeight)) continue
+            if (!projector.project(vx, vy, vz)) continue
 
-            screenX[visibleCount] = projX
-            screenY[visibleCount] = projY
+            val sx = projector.x
+            val sy = projector.y
+            screenX[visibleCount] = sx
+            screenY[visibleCount] = sy
             visibleCount++
 
-            if (projX < minX) minX = projX
-            if (projY < minY) minY = projY
-            if (projX > maxX) maxX = projX
-            if (projY > maxY) maxY = projY
+            if (sx < minX) minX = sx
+            if (sy < minY) minY = sy
+            if (sx > maxX) maxX = sx
+            if (sy > maxY) maxY = sy
         }
 
         if (!(minX >= screenWidth || minY >= screenHeight || maxX <= 0 || maxY <= 0)) {
