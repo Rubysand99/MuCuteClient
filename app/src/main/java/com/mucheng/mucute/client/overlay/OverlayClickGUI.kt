@@ -89,6 +89,10 @@ class OverlayClickGUI : OverlayWindow() {
                     ) {}
             ) {
                 Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f)) {
+                        DialogContent()
+                    }
+                    NeonHorizontalDivider()
                     NeonTabBar {
                         ModuleCategory.entries.fastForEach { moduleCategory ->
                             NeonTab(
@@ -110,8 +114,6 @@ class OverlayClickGUI : OverlayWindow() {
                             )
                         }
                     }
-                    NeonHorizontalDivider()
-                    DialogContent()
                 }
             }
         }

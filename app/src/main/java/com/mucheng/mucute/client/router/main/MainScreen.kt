@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
@@ -72,38 +74,45 @@ enum class MainScreenPages(
 fun MainScreen() {
     val mainScreenViewModel: MainScreenViewModel = viewModel()
     val selectedPage by mainScreenViewModel.selectedPage.collectAsStateWithLifecycle()
+    val bottomInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
     Column(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .windowInsetsPadding(
-                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-            )
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
     ) {
-        NeonTabBar {
-            MainScreenPages.entries.fastForEach { page ->
-                NeonTab(
-                    selected = selectedPage === page,
-                    onClick = {
-                        if (selectedPage !== page) {
-                            mainScreenViewModel.selectPage(page)
-                        }
-                    },
-                    icon = page.icon,
-                    label = page.label
-                )
-            }
-        }
-        NeonHorizontalDivider()
         AnimatedContent(
             targetState = selectedPage,
             label = "animatedPage",
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .fillMaxWidth()
+                .consumeWindowInsets(bottomInsets)
                 .background(MaterialTheme.colorScheme.surfaceContainer),
         ) { currentPage ->
             Box(Modifier.fillMaxSize()) {
                 currentPage.content()
+            }
+        }
+        Column(
+            Modifier
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .windowInsetsPadding(bottomInsets)
+        ) {
+            NeonHorizontalDivider()
+            NeonTabBar {
+                MainScreenPages.entries.fastForEach { page ->
+                    NeonTab(
+                        selected = selectedPage === page,
+                        onClick = {
+                            if (selectedPage !== page) {
+                                mainScreenViewModel.selectPage(page)
+                            }
+                        },
+                        icon = page.icon,
+                        label = page.label
+                    )
+                }
             }
         }
     }
