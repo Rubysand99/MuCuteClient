@@ -4,94 +4,118 @@ import com.mucheng.mucute.client.game.InterceptablePacket
 import com.mucheng.mucute.client.game.Module
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.FriendManager
+import com.mucheng.mucute.client.game.MacroManager
 import com.mucheng.mucute.client.game.ModuleManager
 import com.mucheng.mucute.client.game.module.visual.WaypointModule
 import com.mucheng.mucute.client.game.world.Waypoint
 import com.mucheng.mucute.client.game.world.WaypointManager
 import kotlin.math.floor
 import kotlin.math.sqrt
+import org.cloudburstmc.protocol.bedrock.packet.CommandRequestPacket
 import org.cloudburstmc.protocol.bedrock.packet.TextPacket
 
 class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true, true) {
     private val prefix = "."
 
+    /**
+     * Phiên bản trường `version` của CommandRequestPacket, học từ lệnh `/` thật mà game gửi lên
+     * để macro gửi lệnh server đúng định dạng. 52 là giá trị dự phòng khi chưa thấy lệnh nào.
+     */
+    @Volatile
+    var commandRequestVersion = 52
+        private set
+
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         if (!isEnabled) return
 
         val packet = interceptablePacket.packet
+        if (packet is CommandRequestPacket) {
+            commandRequestVersion = packet.version
+            return
+        }
+
         if (packet is TextPacket && packet.type == TextPacket.Type.CHAT) {
             val message = packet.message
             if (!message.startsWith(prefix)) return
 
             interceptablePacket.intercept()
+            execute(message)
+        }
+    }
 
-            val args = message.substring(prefix.length).split(" ")
-            val command = args[0].lowercase()
+    override fun onDisconnect(reason: String) {
+        MacroManager.stop()
+    }
 
-            when (command) {
-                "help" -> {
-                    displayHelp(args.getOrNull(1))
-                }
-                "goto" -> {
-                    val baritoneModule = ModuleManager.modules.find { it is BaritoneModule } as? BaritoneModule
-                    if (baritoneModule == null) {
-                        session.displayClientMessage("§cBaritone module not found")
-                        return
-                    }
-                    baritoneModule.handleGotoCommand(message)
-                }
-                "config" -> handleConfig(args)
-                "friend", "friends" -> handleFriend(args)
-                "waypoint", "wp" -> handleWaypoint(args)
-                "replay" -> {
-                    val replayModule = ModuleManager.modules.find { it is ReplayModule } as? ReplayModule
-                    if (replayModule == null) {
-                        session.displayClientMessage("§cReplay module not found")
-                        return
-                    }
+    /** Chạy một lệnh client bắt đầu bằng dấu chấm (ví dụ ".fly" hoặc ".waypoint list"). */
+    fun execute(message: String) {
+        val args = message.substring(prefix.length).split(" ")
+        val command = args[0].lowercase()
 
-                    when (args.getOrNull(1)?.lowercase()) {
-                        "record" -> replayModule.startRecording()
-                        "play" -> replayModule.startPlayback()
-                        "stop" -> {
-                            replayModule.stopRecording()
-                            replayModule.stopPlayback()
+        when (command) {
+            "help" -> {
+                displayHelp(args.getOrNull(1))
+            }
+            "goto" -> {
+                val baritoneModule = ModuleManager.modules.find { it is BaritoneModule } as? BaritoneModule
+                if (baritoneModule == null) {
+                    session.displayClientMessage("§cBaritone module not found")
+                    return
+                }
+                baritoneModule.handleGotoCommand(message)
+            }
+            "config" -> handleConfig(args)
+            "friend", "friends" -> handleFriend(args)
+            "macro", "macros" -> handleMacro(args, message)
+            "waypoint", "wp" -> handleWaypoint(args)
+            "replay" -> {
+                val replayModule = ModuleManager.modules.find { it is ReplayModule } as? ReplayModule
+                if (replayModule == null) {
+                    session.displayClientMessage("§cReplay module not found")
+                    return
+                }
+
+                when (args.getOrNull(1)?.lowercase()) {
+                    "record" -> replayModule.startRecording()
+                    "play" -> replayModule.startPlayback()
+                    "stop" -> {
+                        replayModule.stopRecording()
+                        replayModule.stopPlayback()
+                    }
+                    "save" -> {
+                        val name = args.getOrNull(2)
+                        if (name == null) {
+                            session.displayClientMessage("§cUsage: .replay save <name>")
+                            return
                         }
-                        "save" -> {
-                            val name = args.getOrNull(2)
-                            if (name == null) {
-                                session.displayClientMessage("§cUsage: .replay save <name>")
-                                return
-                            }
-                            replayModule.saveReplay(name)
+                        replayModule.saveReplay(name)
+                    }
+                    "load" -> {
+                        val name = args.getOrNull(2)
+                        if (name == null) {
+                            session.displayClientMessage("§cUsage: .replay load <name>")
+                            return
                         }
-                        "load" -> {
-                            val name = args.getOrNull(2)
-                            if (name == null) {
-                                session.displayClientMessage("§cUsage: .replay load <name>")
-                                return
-                            }
-                            replayModule.loadReplay(name)
-                        }
-                        else -> {
-                            session.displayClientMessage("""
-                                §l§b[Replay] §r§7Commands:
-                                §f.replay record §7- Start recording
-                                §f.replay play §7- Play last recording  
-                                §f.replay stop §7- Stop recording/playback
-                                §f.replay save <name> §7- Save recording
-                                §f.replay load <name> §7- Load recording
-                            """.trimIndent())
-                        }
+                        replayModule.loadReplay(name)
+                    }
+                    else -> {
+                        session.displayClientMessage("""
+                            §l§b[Replay] §r§7Commands:
+                            §f.replay record §7- Start recording
+                            §f.replay play §7- Play last recording  
+                            §f.replay stop §7- Stop recording/playback
+                            §f.replay save <name> §7- Save recording
+                            §f.replay load <name> §7- Load recording
+                        """.trimIndent())
                     }
                 }
-                else -> {
-                    val module = ModuleManager.modules.find { it.name.equals(command, ignoreCase = true) }
-                    if (module != null && !module.private) {
-                        module.isEnabled = !module.isEnabled
-                    } else {
-                        session.displayClientMessage("§l§b[MuCuteClient] §r§cModule not found: §f$command")
-                    }
+            }
+            else -> {
+                val module = ModuleManager.modules.find { it.name.equals(command, ignoreCase = true) }
+                if (module != null && !module.private) {
+                    module.isEnabled = !module.isEnabled
+                } else {
+                    session.displayClientMessage("§l§b[MuCuteClient] §r§cModule not found: §f$command")
                 }
             }
         }
@@ -198,6 +222,99 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
                 §f.friend remove <name> §7- Remove a friend
                 §f.friend list §7- List friends
                 §f.friend clear §7- Remove all
+                """.trimIndent()
+            )
+        }
+    }
+
+    private fun handleMacro(args: List<String>, message: String) {
+        val tag = "§l§b[Macro] §r"
+        val action = args.getOrNull(1)?.lowercase()
+        val name = args.getOrNull(2)
+
+        when (action) {
+            "add" -> {
+                if (name == null || !MacroManager.isValidName(name)) {
+                    session.displayClientMessage("${tag}§cName must be 1-32 characters: letters, digits, _ or -")
+                    return
+                }
+                // ".macro add <name> <các bước>": phần thứ 4 là toàn bộ các bước (có thể chứa khoảng trắng),
+                // tách bằng dấu ;. Tách theo vị trí để không nhầm khi tên macro trùng một đoạn của lệnh.
+                val rest = message.split(" ", limit = 4).getOrNull(3)?.trim().orEmpty()
+                val steps = rest.split(";").map { it.trim() }.filter { it.isNotEmpty() }
+                val error = MacroManager.validate(steps)
+                if (error != null) {
+                    session.displayClientMessage("${tag}§c$error")
+                    return
+                }
+                MacroManager.put(name, steps)
+                session.displayClientMessage("${tag}§aSaved §f$name §7(${steps.size} steps)")
+            }
+
+            "run" -> {
+                if (name == null) {
+                    session.displayClientMessage("${tag}§cUsage: .macro run <name>")
+                    return
+                }
+                val error = MacroManager.run(name, session, this)
+                if (error != null) {
+                    session.displayClientMessage("${tag}§c$error")
+                } else {
+                    session.displayClientMessage("${tag}§7Running §f$name")
+                }
+            }
+
+            "stop" -> {
+                if (MacroManager.stop()) {
+                    session.displayClientMessage("${tag}§cStopped")
+                } else {
+                    session.displayClientMessage("${tag}§7No macro is running")
+                }
+            }
+
+            "remove", "delete" -> {
+                if (name == null) {
+                    session.displayClientMessage("${tag}§cUsage: .macro remove <name>")
+                } else if (MacroManager.remove(name)) {
+                    session.displayClientMessage("${tag}§aRemoved §f$name")
+                } else {
+                    session.displayClientMessage("${tag}§cMacro not found: §f$name")
+                }
+            }
+
+            "show" -> {
+                val steps = name?.let { MacroManager.get(it) }
+                if (name == null) {
+                    session.displayClientMessage("${tag}§cUsage: .macro show <name>")
+                } else if (steps == null) {
+                    session.displayClientMessage("${tag}§cMacro not found: §f$name")
+                } else {
+                    session.displayClientMessage("${tag}§f$name§7:")
+                    steps.forEachIndexed { index, step ->
+                        session.displayClientMessage("§7${index + 1}. §f$step")
+                    }
+                }
+            }
+
+            "list" -> {
+                val names = MacroManager.names()
+                if (names.isEmpty()) {
+                    session.displayClientMessage("${tag}§7No macros yet. Use §f.macro add <name> <steps>")
+                } else {
+                    session.displayClientMessage("${tag}§7Macros: §f${names.joinToString("§7, §f")}")
+                }
+            }
+
+            else -> session.displayClientMessage(
+                """
+                §l§b[Macro] §r§7Commands:
+                §f.macro add <name> <step; step; ...> §7- Save a macro
+                §f.macro run <name> §7- Run it
+                §f.macro stop §7- Stop the running macro
+                §f.macro show <name> §7- Show its steps
+                §f.macro list / remove <name>
+                §7Steps: §fon <module>§7, §foff <module>§7, §fwait <ms>§7, §f.command§7, §f/command
+                §7Example: §f.macro add pvp on killaura; wait 5000; off killaura
                 """.trimIndent()
             )
         }
@@ -329,6 +446,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
             §f.config §7- Save/load config profiles
             §f.waypoint §7- Manage waypoints
             §f.friend §7- Manage friends
+            §f.macro §7- Run saved command sequences
             §r§7
         """.trimIndent()
 
