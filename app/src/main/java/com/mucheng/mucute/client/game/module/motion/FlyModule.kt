@@ -68,6 +68,15 @@ class FlyModule : Module("fly", ModuleCategory.Motion) {
 
     private var canFly = false
 
+    // Vẫn phải chặn UpdateAbilities/RequestAbility và gửi gói tắt fly khi module đã tắt.
+    override val receivePacketsWhenDisabled: Boolean
+        get() = true
+
+    override fun onDisconnect(reason: String) {
+        // Phiên mới chưa nhận ability fly nên phải gửi lại ở lần PlayerAuthInput tiếp theo.
+        canFly = false
+    }
+
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         val packet = interceptablePacket.packet
         if (packet is RequestAbilityPacket && packet.ability == Ability.FLYING) {

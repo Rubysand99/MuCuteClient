@@ -34,7 +34,7 @@ class GameSession(val muCuteRelaySession: MuCuteRelaySession) : ComposedPacketHa
 
         val interceptablePacket = InterceptablePacket(packet)
 
-        for (module in ModuleManager.modules) {
+        for (module in ModuleManager.activeModules) {
             module.beforePacketBound(interceptablePacket)
             if (interceptablePacket.isIntercepted) {
                 return true
@@ -47,7 +47,7 @@ class GameSession(val muCuteRelaySession: MuCuteRelaySession) : ComposedPacketHa
     }
 
     override fun afterPacketBound(packet: BedrockPacket) {
-        for (module in ModuleManager.modules) {
+        for (module in ModuleManager.activeModules) {
             module.afterPacketBound(packet)
         }
     }

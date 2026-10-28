@@ -8,6 +8,10 @@ import org.cloudburstmc.protocol.bedrock.packet.PlayerAuthInputPacket
 
 class SprintModule : Module("sprint", ModuleCategory.Motion) {
 
+    // Khi tắt vẫn thêm STOP_SPRINTING vào mỗi PlayerAuthInput (giữ nguyên hành vi cũ).
+    override val receivePacketsWhenDisabled: Boolean
+        get() = true
+
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         val packet = interceptablePacket.packet
         if (packet is PlayerAuthInputPacket && isEnabled) {

@@ -28,13 +28,27 @@ abstract class Module(
     var isEnabled: Boolean
         get() = _isEnabled
         set(value) {
+            // Không làm gì nếu trạng thái không đổi (tránh gọi onEnabled/onDisabled thừa,
+            // ví dụ khi nạp config hoặc khi bật lại module đang bật).
+            if (_isEnabled == value) {
+                return
+            }
             _isEnabled = value
+            ModuleManager.refreshActiveModules()
             if (value) {
                 onEnabled()
             } else {
                 onDisabled()
             }
         }
+
+    /**
+     * Mặc định module đang tắt sẽ không được gọi trong vòng lặp xử lý packet.
+     * Module nào cần nhận packet kể cả khi tắt (ví dụ vẫn phải chặn một loại packet)
+     * thì override thành true.
+     */
+    open val receivePacketsWhenDisabled: Boolean
+        get() = false
 
     val isSessionCreated: Boolean
         get() = ::session.isInitialized

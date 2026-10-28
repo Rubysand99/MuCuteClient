@@ -3,6 +3,7 @@ package com.mucheng.mucute.client.game
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.mucheng.mucute.client.application.AppContext
 import com.mucheng.mucute.client.game.module.combat.AntiCrystalModule
 import com.mucheng.mucute.client.game.module.combat.AntiKnockbackModule
@@ -88,6 +89,23 @@ object ModuleManager {
 
     val modules: List<Module> = _modules
 
+    /**
+     * Danh sách module thực sự cần xử lý packet (đang bật, hoặc đặt receivePacketsWhenDisabled).
+     * Giữ đúng thứ tự đăng ký; được thay thế nguyên khối nên đọc từ thread khác là an toàn.
+     */
+    @Volatile
+    private var _activeModules: Array<Module> = emptyArray()
+
+    val activeModules: Array<Module>
+        get() = _activeModules
+
+    @Synchronized
+    fun refreshActiveModules() {
+        _activeModules = _modules
+            .filter { it.isEnabled || it.receivePacketsWhenDisabled }
+            .toTypedArray()
+    }
+
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
@@ -168,6 +186,7 @@ object ModuleManager {
             add(ReplayModule())
             add(BaritoneModule())
         }
+        refreshActiveModules()
     }
 
     fun saveConfig() {
@@ -186,7 +205,14 @@ object ModuleManager {
             })
         }
 
-        config.writeText(json.encodeToString(jsonObject))
+        // Ghi ra file tạm rồi đổi tên để file cấu hình không bị cụt nếu app bị tắt giữa chừng.
+        val text = json.encodeToString(jsonObject)
+        val tempFile = configsDir.resolve("UserConfig.json.tmp")
+        tempFile.writeText(text)
+        if (!tempFile.renameTo(config)) {
+            config.writeText(text)
+            tempFile.delete()
+        }
     }
 
     fun loadConfig() {
@@ -198,17 +224,22 @@ object ModuleManager {
             return
         }
 
-        val jsonString = config.readText()
-        if (jsonString.isEmpty()) {
-            return
-        }
-
-        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-        val modules = jsonObject["modules"]!!.jsonObject
-        _modules.forEach { module ->
-            (modules[module.name] as? JsonObject)?.let {
-                module.fromJson(it)
+        // File cấu hình hỏng/thiếu "modules" thì giữ cấu hình mặc định, không làm crash app.
+        try {
+            val jsonString = config.readText()
+            if (jsonString.isEmpty()) {
+                return
             }
+
+            val modules = json.parseToJsonElement(jsonString).jsonObject["modules"] as? JsonObject
+                ?: return
+            _modules.forEach { module ->
+                (modules[module.name] as? JsonObject)?.let {
+                    module.fromJson(it)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ModuleManager", "Failed to load config, using defaults", e)
         }
     }
 

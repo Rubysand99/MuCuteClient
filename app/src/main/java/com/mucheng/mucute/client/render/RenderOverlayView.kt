@@ -8,6 +8,11 @@ import com.mucheng.mucute.client.game.module.visual.ESPModule
 
 class RenderOverlayView(context: Context) : View(context) {
 
+    // Module ESP là cố định nên chỉ cần tìm một lần, không lọc danh sách module mỗi frame.
+    private val espModule: ESPModule? by lazy(LazyThreadSafetyMode.NONE) {
+        ModuleManager.modules.filterIsInstance<ESPModule>().firstOrNull()
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         invalidate() // Initial render
@@ -16,14 +21,9 @@ class RenderOverlayView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        ModuleManager.modules
-            .filterIsInstance<ESPModule>()
-            .filter { it.isEnabled && it.isSessionCreated } //isSessionCreated check
-            .forEach { it.render(canvas) }
-
-        if (ModuleManager.modules.any {
-                it is ESPModule && it.isEnabled && it.isSessionCreated
-            }) {
+        val esp = espModule ?: return
+        if (esp.isEnabled && esp.isSessionCreated) { //isSessionCreated check
+            esp.render(canvas)
             postInvalidateOnAnimation()
         }
     }

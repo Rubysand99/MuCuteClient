@@ -56,22 +56,31 @@ class ZoomModule : Module("zoom", ModuleCategory.Visual) {
         })
     }
 
+    @Volatile
     private var isZoomEnabled = false
+
+    override fun onDisabled() {
+        super.onDisabled()
+        // Module tắt không còn nhận packet nên gửi gói tắt zoom ngay tại đây.
+        if (isSessionCreated && isZoomEnabled) {
+            disableZoomPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
+            session.clientBound(disableZoomPacket)
+        }
+        isZoomEnabled = false
+    }
+
+    override fun onDisconnect(reason: String) {
+        // Phiên mới chưa có ability zoom nên phải gửi lại.
+        isZoomEnabled = false
+    }
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         val packet = interceptablePacket.packet
-        if (packet is PlayerAuthInputPacket) {
-            if (!isZoomEnabled && isEnabled) {
-                // Enable zoom
-                enableZoomPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
-                session.clientBound(enableZoomPacket)
-                isZoomEnabled = true
-            } else if (isZoomEnabled && !isEnabled) {
-                // Disable zoom
-                disableZoomPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
-                session.clientBound(disableZoomPacket)
-                isZoomEnabled = false
-            }
+        if (packet is PlayerAuthInputPacket && !isZoomEnabled && isEnabled) {
+            // Enable zoom
+            enableZoomPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
+            session.clientBound(enableZoomPacket)
+            isZoomEnabled = true
         }
     }
 }

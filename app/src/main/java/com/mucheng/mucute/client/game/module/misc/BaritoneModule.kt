@@ -24,6 +24,10 @@ class BaritoneModule : Module("baritone", ModuleCategory.Misc) {
     private val jumpHeight by floatValue("jump_height", 0.42f, 0.1f..1.0f)
     private val distanceThreshold by floatValue("completion_distance", 1.0f, 0.5f..5.0f)
 
+    // Lệnh .goto phải được nhận kể cả khi module đang tắt (nó tự bật module).
+    override val receivePacketsWhenDisabled: Boolean
+        get() = true
+
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         val packet = interceptablePacket.packet
 

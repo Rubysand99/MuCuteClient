@@ -20,6 +20,7 @@ class MotionFlyModule : Module("motion_fly", ModuleCategory.Motion) {
     private val motionInterval = floatValue("delay", 472.17f, 100.0f..600.0f)
     private var lastMotionTime = 0L
     private var jitterState = false
+    @Volatile
     private var canFly = false
 
     private val flyAbilitiesPacket = UpdateAbilitiesPacket().apply {
@@ -65,25 +66,35 @@ class MotionFlyModule : Module("motion_fly", ModuleCategory.Motion) {
         })
     }
 
-    private fun handleFlyAbilities(isEnabled: Boolean) {
-        if (canFly != isEnabled) {
-            flyAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
+    override fun onDisabled() {
+        super.onDisabled()
+        // Module tắt không còn nhận packet nên gửi gói reset ability ngay tại đây.
+        if (isSessionCreated && canFly) {
             resetAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
-            if (isEnabled) {
-                session.clientBound(flyAbilitiesPacket)
-            } else {
-                session.clientBound(resetAbilitiesPacket)
-            }
-            canFly = isEnabled
+            session.clientBound(resetAbilitiesPacket)
+        }
+        canFly = false
+    }
+
+    override fun onDisconnect(reason: String) {
+        // Phiên mới chưa có ability fly nên phải gửi lại.
+        canFly = false
+    }
+
+    private fun enableFlyAbilities() {
+        if (!canFly) {
+            flyAbilitiesPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
+            session.clientBound(flyAbilitiesPacket)
+            canFly = true
         }
     }
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         val packet = interceptablePacket.packet
 
-        if (packet is PlayerAuthInputPacket) {
-            handleFlyAbilities(isEnabled)
-            if (isEnabled && System.currentTimeMillis() - lastMotionTime >= motionInterval.value) {
+        if (packet is PlayerAuthInputPacket && isEnabled) {
+            enableFlyAbilities()
+            if (System.currentTimeMillis() - lastMotionTime >= motionInterval.value) {
                 val vertical = when {
                     packet.inputData.contains(PlayerAuthInputData.WANT_UP) -> verticalSpeedUp.value
                     packet.inputData.contains(PlayerAuthInputData.WANT_DOWN) -> -verticalSpeedDown.value

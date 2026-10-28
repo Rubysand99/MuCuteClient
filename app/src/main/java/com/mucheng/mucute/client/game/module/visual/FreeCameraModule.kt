@@ -12,6 +12,7 @@ import org.cloudburstmc.protocol.bedrock.data.Ability
 import org.cloudburstmc.protocol.bedrock.data.AbilityLayer
 import org.cloudburstmc.protocol.bedrock.data.PlayerPermission
 import org.cloudburstmc.protocol.bedrock.data.command.CommandPermission
+import org.cloudburstmc.protocol.bedrock.packet.MovePlayerPacket
 import org.cloudburstmc.protocol.bedrock.packet.PlayerAuthInputPacket
 import org.cloudburstmc.protocol.bedrock.packet.TextPacket
 import org.cloudburstmc.protocol.bedrock.data.PlayerAuthInputData
@@ -72,6 +73,11 @@ class FreeCameraModule : Module("free_camera", ModuleCategory.Visual) {
 
     private var isFlyNoClipEnabled = false
 
+    override fun onDisconnect(reason: String) {
+        // Phiên mới chưa có ability fly/no-clip nên coi như chưa bật.
+        isFlyNoClipEnabled = false
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onEnabled() {
         super.onEnabled()
@@ -85,10 +91,13 @@ class FreeCameraModule : Module("free_camera", ModuleCategory.Visual) {
 
             GlobalScope.launch {
                 for (i in 5 downTo 1) {
+                    // Người dùng tắt module trong lúc đếm ngược thì dừng, không bật fly nữa.
+                    if (!isEnabled) return@launch
                     val countdownMessage = "§l§b[MuCute] §r§7FreeCam will enable in §e$i §7seconds"
                     sendCountdownMessage(countdownMessage)
                     delay(1000)
                 }
+                if (!isEnabled) return@launch
 
                 enableFlyNoClipPacket.uniqueEntityId = session.localPlayer.uniqueEntityId
                 session.clientBound(enableFlyNoClipPacket)
@@ -100,12 +109,18 @@ class FreeCameraModule : Module("free_camera", ModuleCategory.Visual) {
     override fun onDisabled() {
         super.onDisabled()
         if (isSessionCreated && originalPosition != null) {
-            // Return to original position when disabled
-            val motionPacket = SetEntityMotionPacket().apply {
+            // Return to original position when disabled.
+            // (Trước đây gửi SetEntityMotionPacket với toạ độ làm vận tốc nên không về đúng chỗ.)
+            val movePacket = MovePlayerPacket().apply {
                 runtimeEntityId = session.localPlayer.runtimeEntityId
-                motion = originalPosition
+                position = originalPosition
+                rotation = session.localPlayer.vec3Rotation
+                mode = MovePlayerPacket.Mode.NORMAL
+                isOnGround = false
+                ridingRuntimeEntityId = 0
+                tick = session.localPlayer.tickExists
             }
-            session.clientBound(motionPacket)
+            session.clientBound(movePacket)
             originalPosition = null
 
             disableFlyNoClipPacket.uniqueEntityId = session.localPlayer.uniqueEntityId

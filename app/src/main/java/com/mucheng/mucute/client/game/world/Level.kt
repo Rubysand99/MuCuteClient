@@ -9,10 +9,17 @@ import org.cloudburstmc.protocol.bedrock.packet.AddEntityPacket
 import org.cloudburstmc.protocol.bedrock.packet.AddItemEntityPacket
 import org.cloudburstmc.protocol.bedrock.packet.AddPlayerPacket
 import org.cloudburstmc.protocol.bedrock.packet.BedrockPacket
+import org.cloudburstmc.protocol.bedrock.packet.MobEffectPacket
+import org.cloudburstmc.protocol.bedrock.packet.MoveEntityAbsolutePacket
+import org.cloudburstmc.protocol.bedrock.packet.MoveEntityDeltaPacket
+import org.cloudburstmc.protocol.bedrock.packet.MovePlayerPacket
 import org.cloudburstmc.protocol.bedrock.packet.PlayerListPacket
 import org.cloudburstmc.protocol.bedrock.packet.RemoveEntityPacket
+import org.cloudburstmc.protocol.bedrock.packet.SetEntityDataPacket
+import org.cloudburstmc.protocol.bedrock.packet.SetEntityLinkPacket
 import org.cloudburstmc.protocol.bedrock.packet.StartGamePacket
 import org.cloudburstmc.protocol.bedrock.packet.TakeItemEntityPacket
+import org.cloudburstmc.protocol.bedrock.packet.UpdateAttributesPacket
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -23,15 +30,37 @@ class Level(val session: GameSession) {
 
     val playerMap = ConcurrentHashMap<UUID, PlayerListPacket.Entry>()
 
+    // uniqueEntityId -> runtimeEntityId, để RemoveEntityPacket tra cứu O(1) thay vì duyệt cả entityMap.
+    private val runtimeIdByUniqueId = ConcurrentHashMap<Long, Long>()
+
     fun onDisconnect() {
-        entityMap.clear()
+        clearEntities()
         playerMap.clear()
+    }
+
+    private fun clearEntities() {
+        entityMap.clear()
+        runtimeIdByUniqueId.clear()
+    }
+
+    private fun addEntity(entity: Entity) {
+        // Nếu runtimeEntityId này đã có entity cũ thì bỏ mapping uniqueId của nó.
+        entityMap.put(entity.runtimeEntityId, entity)?.let {
+            runtimeIdByUniqueId.remove(it.uniqueEntityId)
+        }
+        runtimeIdByUniqueId[entity.uniqueEntityId] = entity.runtimeEntityId
+    }
+
+    private fun removeEntityByRuntimeId(runtimeEntityId: Long) {
+        entityMap.remove(runtimeEntityId)?.let {
+            runtimeIdByUniqueId.remove(it.uniqueEntityId)
+        }
     }
 
     fun onPacketBound(packet: BedrockPacket) {
         when (packet) {
             is StartGamePacket -> {
-                entityMap.clear()
+                clearEntities()
                 playerMap.clear()
             }
 
@@ -46,7 +75,7 @@ class Level(val session: GameSession) {
                     handleSetData(packet.metadata)
                     handleSetAttribute(packet.attributes)
                 }
-                entityMap[packet.runtimeEntityId] = entity
+                addEntity(entity)
             }
 
             is AddItemEntityPacket -> {
@@ -54,7 +83,7 @@ class Level(val session: GameSession) {
                     move(packet.position)
                     handleSetData(packet.metadata)
                 }
-                entityMap[packet.runtimeEntityId] = entity
+                addEntity(entity)
             }
 
             is AddPlayerPacket -> {
@@ -68,17 +97,16 @@ class Level(val session: GameSession) {
                     rotate(packet.rotation)
                     handleSetData(packet.metadata)
                 }
-                entityMap[packet.runtimeEntityId] = entity
+                addEntity(entity)
             }
 
             is RemoveEntityPacket -> {
-                val entityToRemove =
-                    entityMap.values.find { it.uniqueEntityId == packet.uniqueEntityId } ?: return
-                entityMap.remove(entityToRemove.runtimeEntityId)
+                val runtimeEntityId = runtimeIdByUniqueId[packet.uniqueEntityId] ?: return
+                removeEntityByRuntimeId(runtimeEntityId)
             }
 
             is TakeItemEntityPacket -> {
-                entityMap.remove(packet.itemRuntimeEntityId)
+                removeEntityByRuntimeId(packet.itemRuntimeEntityId)
             }
 
             is PlayerListPacket -> {
@@ -92,11 +120,29 @@ class Level(val session: GameSession) {
                 }
             }
 
-            else -> {
-                entityMap.values.forEach { entity ->
-                    entity.onPacketBound(packet)
-                }
+            else -> dispatchToEntities(packet)
+        }
+    }
+
+    /**
+     * Chỉ chuyển packet tới entity thực sự cần xử lý, thay vì duyệt toàn bộ entityMap cho mọi packet.
+     * Entity.onPacketBound và Player.onPacketBound chỉ phản ứng với đúng các loại packet dưới đây
+     * (so khớp theo runtimeEntityId, riêng SetEntityLinkPacket so khớp theo uniqueEntityId nên phải
+     * gửi cho tất cả). Nếu sau này thêm xử lý packet mới trong Entity thì cần bổ sung ở đây.
+     */
+    private fun dispatchToEntities(packet: BedrockPacket) {
+        when (packet) {
+            is MoveEntityAbsolutePacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is MoveEntityDeltaPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is MovePlayerPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is SetEntityDataPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is UpdateAttributesPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is MobEffectPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is SetEntityLinkPacket -> entityMap.values.forEach { entity ->
+                entity.onPacketBound(packet)
             }
+
+            else -> {}
         }
     }
 

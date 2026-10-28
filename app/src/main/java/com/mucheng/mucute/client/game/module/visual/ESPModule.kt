@@ -1,9 +1,10 @@
 package com.mucheng.mucute.client.game.module.visual
 
-import android.annotation.SuppressLint
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
 import com.mucheng.mucute.client.game.InterceptablePacket
 import com.mucheng.mucute.client.game.Module
 import com.mucheng.mucute.client.game.ModuleCategory
@@ -11,8 +12,6 @@ import com.mucheng.mucute.client.game.entity.Entity
 import com.mucheng.mucute.client.game.entity.Player
 import com.mucheng.mucute.client.render.RenderOverlayView
 import org.cloudburstmc.math.matrix.Matrix4f
-import org.cloudburstmc.math.vector.Vector2f
-import org.cloudburstmc.math.vector.Vector3f
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -23,6 +22,18 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
         fun setRenderView(view: RenderOverlayView) {
             renderView = view
         }
+
+        private const val BOX_WIDTH = 0.6f
+        private const val BOX_HEIGHT = 1.8f // Standard player/entity height
+        private const val PLAYER_EYE_HEIGHT = 1.62f
+        private const val TEXT_PADDING = 8f
+
+        // 12 cạnh của hộp 3D, mỗi cạnh là một cặp chỉ số đỉnh (đỉnh 0..7).
+        private val BOX_EDGES = intArrayOf(
+            0, 1, 1, 2, 2, 3, 3, 0,  // Front face
+            4, 5, 5, 6, 6, 7, 7, 4,  // Back face
+            0, 4, 1, 5, 2, 6, 3, 7   // Connecting edges
+        )
     }
 
     // Basic settings
@@ -47,6 +58,48 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
     private val tracerBottom by boolValue("tracer_bottom", true)
     private val tracerTop by boolValue("tracer_top", false)
     private val tracerCenter by boolValue("tracer_center", false)
+
+    // Các đối tượng dùng lại giữa các frame để tránh cấp phát trong onDraw.
+    // render() chỉ chạy trên UI thread nên không cần đồng bộ.
+    private val boxPaint = Paint().apply { style = Paint.Style.STROKE }
+
+    private val bgPaint = Paint().apply {
+        color = Color.argb(160, 0, 0, 0) // Semi-transparent black background
+        style = Paint.Style.FILL
+    }
+
+    private val outlinePaint = Paint().apply {
+        color = Color.BLACK
+        textSize = 30f
+        textAlign = Paint.Align.CENTER
+        style = Paint.Style.STROKE
+        strokeWidth = 4f // Thick outline
+    }
+
+    private val textPaint = Paint().apply {
+        textSize = 30f
+        textAlign = Paint.Align.CENTER
+        style = Paint.Style.FILL
+    }
+
+    private val textBounds = Rect()
+    private val bgRect = RectF()
+    private val infoBuilder = StringBuilder()
+
+    // Hàng 0, 1 và 3 của ma trận view-projection (mỗi hàng 4 số).
+    private val viewProj = FloatArray(12)
+
+    // Toạ độ màn hình của các đỉnh nhìn thấy được (đã dồn lại, tối đa 8 đỉnh).
+    private val screenX = FloatArray(8)
+    private val screenY = FloatArray(8)
+
+    // Kết quả của project().
+    private var projX = 0f
+    private var projY = 0f
+
+    private val lineBuffer = FloatArray(BOX_EDGES.size * 2)
+    private val cornerX = FloatArray(4)
+    private val cornerY = FloatArray(4)
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         // ESP doesn't need to intercept packets
@@ -88,52 +141,20 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
         )
     }
 
-    private fun getEntityBoxVertices(entity: Entity): Array<Vector3f> {
-        val width = 0.6f
-        val height = 1.8f // Standard player/entity height
-
-        val pos = entity.vec3Position
-        val halfWidth = width / 2f
-
-        val yPos = if (entity is Player) {
-            pos.y - 1.62f
-        } else {
-            pos.y
-        }
-
-        return arrayOf(
-            Vector3f.from(pos.x - halfWidth, yPos, pos.z - halfWidth),          // Bottom front left
-            Vector3f.from(pos.x - halfWidth, yPos + height, pos.z - halfWidth), // Top front left
-            Vector3f.from(pos.x + halfWidth, yPos + height, pos.z - halfWidth), // Top front right
-            Vector3f.from(pos.x + halfWidth, yPos, pos.z - halfWidth),          // Bottom front right
-            Vector3f.from(pos.x - halfWidth, yPos, pos.z + halfWidth),          // Bottom back left
-            Vector3f.from(pos.x - halfWidth, yPos + height, pos.z + halfWidth), // Top back left
-            Vector3f.from(pos.x + halfWidth, yPos + height, pos.z + halfWidth), // Top back right
-            Vector3f.from(pos.x + halfWidth, yPos, pos.z + halfWidth)           // Bottom back right
-        )
-    }
-
-    private fun worldToScreen(pos: Vector3f, viewProjMatrix: Matrix4f, screenWidth: Int, screenHeight: Int): Vector2f? {
-        val w = viewProjMatrix.get(3, 0) * pos.x +
-                viewProjMatrix.get(3, 1) * pos.y +
-                viewProjMatrix.get(3, 2) * pos.z +
-                viewProjMatrix.get(3, 3)
-
-        if (w < 0.01f) return null
+    /**
+     * Chiếu một điểm trong thế giới lên màn hình, kết quả nằm ở projX/projY.
+     * Trả về false nếu điểm nằm sau camera.
+     */
+    private fun project(x: Float, y: Float, z: Float, screenWidth: Int, screenHeight: Int): Boolean {
+        val m = viewProj
+        val w = m[8] * x + m[9] * y + m[10] * z + m[11]
+        if (w < 0.01f) return false
 
         val inverseW = 1f / w
 
-        val screenX = screenWidth / 2f + (0.5f * ((viewProjMatrix.get(0, 0) * pos.x +
-                viewProjMatrix.get(0, 1) * pos.y +
-                viewProjMatrix.get(0, 2) * pos.z +
-                viewProjMatrix.get(0, 3)) * inverseW) * screenWidth + 0.5f)
-
-        val screenY = screenHeight / 2f - (0.5f * ((viewProjMatrix.get(1, 0) * pos.x +
-                viewProjMatrix.get(1, 1) * pos.y +
-                viewProjMatrix.get(1, 2) * pos.z +
-                viewProjMatrix.get(1, 3)) * inverseW) * screenHeight + 0.5f)
-
-        return Vector2f.from(screenX, screenY)
+        projX = screenWidth / 2f + (0.5f * ((m[0] * x + m[1] * y + m[2] * z + m[3]) * inverseW) * screenWidth + 0.5f)
+        projY = screenHeight / 2f - (0.5f * ((m[4] * x + m[5] * y + m[6] * z + m[7]) * inverseW) * screenHeight + 0.5f)
+        return true
     }
 
     private fun shouldRenderEntity(entity: Entity): Boolean {
@@ -146,11 +167,7 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
         if (!isEnabled || !isSessionCreated) return  // isSessionCreated check
 
         val player = session.localPlayer
-        val entities = if (showAllEntities) {
-            session.level.entityMap.values
-        } else {
-            session.level.entityMap.values.filterIsInstance<Player>()
-        }
+        val entities = session.level.entityMap.values
 
         if (entities.isEmpty()) return
 
@@ -164,207 +181,187 @@ class ESPModule : Module("esp", ModuleCategory.Visual) {
                 .mul(rotateX(-player.rotationPitch))
                 .invert())
 
-        val paint = Paint().apply {
-            style = Paint.Style.STROKE
-            strokeWidth = this@ESPModule.strokeWidth
-            color = Color.rgb(colorRed, colorGreen, colorBlue)
+        for (column in 0 until 4) {
+            viewProj[column] = viewProjMatrix.get(0, column)
+            viewProj[4 + column] = viewProjMatrix.get(1, column)
+            viewProj[8 + column] = viewProjMatrix.get(3, column)
         }
 
-        entities.forEach { entity ->
+        boxPaint.strokeWidth = strokeWidth
+        boxPaint.color = Color.rgb(colorRed, colorGreen, colorBlue)
+        textPaint.color = boxPaint.color
+
+        for (entity in entities) {
             if (shouldRenderEntity(entity)) {
-                drawEntityBox(entity, viewProjMatrix, screenWidth, screenHeight, canvas, paint)
+                drawEntityBox(entity, screenWidth, screenHeight, canvas)
             }
         }
     }
 
-    private fun drawEntityBox(entity: Entity, viewProjMatrix: Matrix4f,
-                              screenWidth: Int, screenHeight: Int,
-                              canvas: Canvas, paint: Paint) {
-        val boxVertices = getEntityBoxVertices(entity)
-        var minX = screenWidth.toDouble()
-        var minY = screenHeight.toDouble()
-        var maxX = 0.0
-        var maxY = 0.0
-        val screenPositions = mutableListOf<Vector2f>()
+    private fun drawEntityBox(entity: Entity, screenWidth: Int, screenHeight: Int, canvas: Canvas) {
+        val half = BOX_WIDTH / 2f
+        val x = entity.posX
+        val z = entity.posZ
+        val yBottom = if (entity is Player) entity.posY - PLAYER_EYE_HEIGHT else entity.posY
+        val yTop = yBottom + BOX_HEIGHT
 
-        boxVertices.forEach { vertex ->
-            val screenPos = worldToScreen(vertex, viewProjMatrix, screenWidth, screenHeight)
-                ?: return@forEach
-            screenPositions.add(screenPos)
-            minX = minX.coerceAtMost(screenPos.x.toDouble())
-            minY = minY.coerceAtMost(screenPos.y.toDouble())
-            maxX = maxX.coerceAtLeast(screenPos.x.toDouble())
-            maxY = maxY.coerceAtLeast(screenPos.y.toDouble())
+        var minX = screenWidth.toFloat()
+        var minY = screenHeight.toFloat()
+        var maxX = 0f
+        var maxY = 0f
+        var visibleCount = 0
+
+        // Đỉnh 0..7: mặt trước (z-) rồi mặt sau (z+), mỗi mặt đi theo thứ tự
+        // dưới-trái, trên-trái, trên-phải, dưới-phải.
+        for (i in 0 until 8) {
+            val corner = i and 3
+            val vx = if (corner >= 2) x + half else x - half
+            val vy = if (corner == 1 || corner == 2) yTop else yBottom
+            val vz = if (i >= 4) z + half else z - half
+
+            if (!project(vx, vy, vz, screenWidth, screenHeight)) continue
+
+            screenX[visibleCount] = projX
+            screenY[visibleCount] = projY
+            visibleCount++
+
+            if (projX < minX) minX = projX
+            if (projY < minY) minY = projY
+            if (projX > maxX) maxX = projX
+            if (projY > maxY) maxY = projY
         }
 
         if (!(minX >= screenWidth || minY >= screenHeight || maxX <= 0 || maxY <= 0)) {
             when {
-                use2DBox -> draw2DBox(canvas, paint, minX, minY, maxX, maxY)
-                use3DBox -> draw3DBox(canvas, paint, screenPositions)
-                useCornerBox -> drawCornerBox(canvas, paint, minX, minY, maxX, maxY)
+                use2DBox -> draw2DBox(canvas, minX, minY, maxX, maxY)
+                use3DBox -> draw3DBox(canvas, visibleCount)
+                useCornerBox -> drawCornerBox(canvas, minX, minY, maxX, maxY)
             }
 
             if (tracers) {
-                drawTracer(canvas, paint, screenWidth, screenHeight, minX, minY, maxX, maxY)
+                drawTracer(canvas, screenWidth, screenHeight, minX, minY, maxX, maxY)
             }
 
             if (showNames || showDistance) {
-                drawEntityInfo(canvas, paint, entity, minX, minY, maxX)
+                drawEntityInfo(canvas, entity, minX, minY, maxX)
             }
         }
     }
 
-    private fun draw2DBox(canvas: Canvas, paint: Paint, minX: Double, minY: Double, maxX: Double, maxY: Double) {
-        val padding = paint.strokeWidth / 2
+    private fun draw2DBox(canvas: Canvas, minX: Float, minY: Float, maxX: Float, maxY: Float) {
+        val padding = boxPaint.strokeWidth / 2
         canvas.drawRect(
-            minX.toFloat() + padding,
-            minY.toFloat() + padding,
-            maxX.toFloat() - padding,
-            maxY.toFloat() - padding,
-            paint
+            minX + padding,
+            minY + padding,
+            maxX - padding,
+            maxY - padding,
+            boxPaint
         )
     }
 
-    private fun draw3DBox(canvas: Canvas, paint: Paint, screenPositions: List<Vector2f>) {
-        if (screenPositions.size < 8) return
+    private fun draw3DBox(canvas: Canvas, visibleCount: Int) {
+        // Thiếu đỉnh (có đỉnh nằm sau camera) thì không vẽ hộp 3D.
+        if (visibleCount < 8) return
 
-        val edges = listOf(
-            0 to 1, 1 to 2, 2 to 3, 3 to 0,  // Front face
-            4 to 5, 5 to 6, 6 to 7, 7 to 4,  // Back face
-            0 to 4, 1 to 5, 2 to 6, 3 to 7   // Connecting edges
-        )
+        val padding = boxPaint.strokeWidth / 2
+        val maxDrawX = canvas.width - padding
+        val maxDrawY = canvas.height - padding
+        var floats = 0
 
-        edges.forEach { (start, end) ->
-            val startPos = screenPositions[start]
-            val endPos = screenPositions[end]
+        for (edge in 0 until BOX_EDGES.size / 2) {
+            val start = BOX_EDGES[edge * 2]
+            val end = BOX_EDGES[edge * 2 + 1]
 
-            if (isOnScreen(startPos, canvas) && isOnScreen(endPos, canvas)) {
-                //slight padding
-                val padding = paint.strokeWidth / 2
-                canvas.drawLine(
-                    startPos.x.coerceIn(padding, canvas.width - padding),
-                    startPos.y.coerceIn(padding, canvas.height - padding),
-                    endPos.x.coerceIn(padding, canvas.width - padding),
-                    endPos.y.coerceIn(padding, canvas.height - padding),
-                    paint
-                )
+            if (isOnScreen(screenX[start], screenY[start], canvas) &&
+                isOnScreen(screenX[end], screenY[end], canvas)
+            ) {
+                lineBuffer[floats++] = screenX[start].coerceIn(padding, maxDrawX)
+                lineBuffer[floats++] = screenY[start].coerceIn(padding, maxDrawY)
+                lineBuffer[floats++] = screenX[end].coerceIn(padding, maxDrawX)
+                lineBuffer[floats++] = screenY[end].coerceIn(padding, maxDrawY)
             }
+        }
+
+        if (floats > 0) {
+            canvas.drawLines(lineBuffer, 0, floats, boxPaint)
         }
     }
 
-    private fun isOnScreen(pos: Vector2f, canvas: Canvas): Boolean {
-        return pos.x >= 0 && pos.x <= canvas.width &&
-                pos.y >= 0 && pos.y <= canvas.height
+    private fun isOnScreen(x: Float, y: Float, canvas: Canvas): Boolean {
+        return x >= 0 && x <= canvas.width &&
+                y >= 0 && y <= canvas.height
     }
 
-    private fun drawCornerBox(canvas: Canvas, paint: Paint, minX: Double, minY: Double, maxX: Double, maxY: Double) {
-        val cornerLength = (maxX - minX).toFloat() / 4
-        val corners = listOf(
-            minX to minY,
-            maxX to minY,
-            maxX to maxY,
-            minX to maxY
-        )
+    private fun drawCornerBox(canvas: Canvas, minX: Float, minY: Float, maxX: Float, maxY: Float) {
+        val cornerLength = (maxX - minX) / 4
 
-        corners.forEachIndexed { i, (x, y) ->
-            val nextCorner = corners[(i + 1) % 4]
+        cornerX[0] = minX; cornerY[0] = minY
+        cornerX[1] = maxX; cornerY[1] = minY
+        cornerX[2] = maxX; cornerY[2] = maxY
+        cornerX[3] = minX; cornerY[3] = maxY
+
+        for (i in 0 until 4) {
+            val x = cornerX[i]
+            val y = cornerY[i]
+            val nextX = cornerX[(i + 1) % 4]
+            val nextY = cornerY[(i + 1) % 4]
+            val stubX = x + if (i % 2 == 0) cornerLength else -cornerLength
 
             // Horizontal lines
-            canvas.drawLine(
-                x.toFloat(),
-                y.toFloat(),
-                x.toFloat() + if (i % 2 == 0) cornerLength else -cornerLength,
-                y.toFloat(),
-                paint
-            )
+            canvas.drawLine(x, y, stubX, y, boxPaint)
 
             // Vertical lines
-            canvas.drawLine(
-                x.toFloat(),
-                y.toFloat(),
-                x.toFloat(),
-                y.toFloat() + if (i < 2) cornerLength else -cornerLength,
-                paint
-            )
+            canvas.drawLine(x, y, x, y + if (i < 2) cornerLength else -cornerLength, boxPaint)
 
             // Connect to next corner
-            canvas.drawLine(
-                x.toFloat() + if (i % 2 == 0) cornerLength else -cornerLength,
-                y.toFloat(),
-                nextCorner.first.toFloat(),
-                nextCorner.second.toFloat(),
-                paint
-            )
+            canvas.drawLine(stubX, y, nextX, nextY, boxPaint)
         }
     }
 
-    private fun drawTracer(canvas: Canvas, paint: Paint, screenWidth: Int, screenHeight: Int, minX: Double, minY: Double, maxX: Double, maxY: Double) {
-        val start = when {
-            tracerBottom -> Vector2f.from(screenWidth / 2f, screenHeight.toFloat())
-            tracerTop -> Vector2f.from(screenWidth / 2f, 0f)
-            tracerCenter -> Vector2f.from(screenWidth / 2f, screenHeight / 2f)
-            else -> Vector2f.from(screenWidth / 2f, screenHeight.toFloat())
+    private fun drawTracer(
+        canvas: Canvas,
+        screenWidth: Int,
+        screenHeight: Int,
+        minX: Float,
+        minY: Float,
+        maxX: Float,
+        maxY: Float
+    ) {
+        val startX = screenWidth / 2f
+        val startY = when {
+            tracerBottom -> screenHeight.toFloat()
+            tracerTop -> 0f
+            tracerCenter -> screenHeight / 2f
+            else -> screenHeight.toFloat()
         }
-        val end = Vector2f.from(
-            (minX + maxX).toFloat() / 2,
-            (minY + maxY).toFloat() / 2
-        )
-        canvas.drawLine(
-            start.x,
-            start.y,
-            end.x,
-            end.y,
-            paint
-        )
+
+        canvas.drawLine(startX, startY, (minX + maxX) / 2, (minY + maxY) / 2, boxPaint)
     }
 
-    @SuppressLint("DefaultLocale")
-    private fun drawEntityInfo(canvas: Canvas, paint: Paint, entity: Entity, minX: Double, minY: Double, maxX: Double) {
-        // Background paint for text
-        val bgPaint = Paint().apply {
-            color = Color.argb(160, 0, 0, 0) // Semi-transparent black background
-            style = Paint.Style.FILL
+    private fun drawEntityInfo(canvas: Canvas, entity: Entity, minX: Float, minY: Float, maxX: Float) {
+        infoBuilder.setLength(0)
+        if (showNames && entity is Player) {
+            infoBuilder.append(entity.username)
         }
-
-        // Outline paint
-        val outlinePaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 30f
-            textAlign = Paint.Align.CENTER
-            style = Paint.Style.STROKE
-            strokeWidth = 4f // Thick outline
+        if (showDistance) {
+            if (infoBuilder.isNotEmpty()) infoBuilder.append(" | ")
+            // Làm tròn 1 chữ số thập phân, không phụ thuộc locale của máy.
+            val tenths = (entity.distance(session.localPlayer) * 10f + 0.5f).toInt()
+            infoBuilder.append(tenths / 10).append('.').append(tenths % 10).append('m')
         }
+        if (infoBuilder.isEmpty()) return
 
-        val textPaint = Paint().apply {
-            color = paint.color
-            textSize = 30f
-            textAlign = Paint.Align.CENTER
-            style = Paint.Style.FILL
-        }
+        val info = infoBuilder.toString()
+        val textX = (minX + maxX) / 2
+        val textY = minY - 10
 
-        val info = buildString {
-            if (showNames && entity is Player) {
-                append(entity.username)
-            }
-            if (showDistance) {
-                if (isNotEmpty()) append(" | ")
-                val distance = entity.vec3Position.distance(session.localPlayer.vec3Position)
-                append("${String.format("%.1f", distance)}m")
-            }
-        }
+        textPaint.getTextBounds(info, 0, info.length, textBounds)
 
-        val textX = (minX + maxX).toFloat() / 2
-        val textY = minY.toFloat() - 10
-
-        val bounds = android.graphics.Rect()
-        textPaint.getTextBounds(info, 0, info.length, bounds)
-
-        val padding = 8f
-        val bgRect = android.graphics.RectF(
-            textX - bounds.width() / 2 - padding,
-            textY - bounds.height() - padding,
-            textX + bounds.width() / 2 + padding,
-            textY + padding
+        bgRect.set(
+            textX - textBounds.width() / 2 - TEXT_PADDING,
+            textY - textBounds.height() - TEXT_PADDING,
+            textX + textBounds.width() / 2 + TEXT_PADDING,
+            textY + TEXT_PADDING
         )
         canvas.drawRoundRect(bgRect, 4f, 4f, bgPaint)
 

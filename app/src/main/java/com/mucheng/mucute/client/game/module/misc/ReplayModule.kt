@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.cloudburstmc.protocol.bedrock.data.PlayerAuthInputData
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 
 class ReplayModule : Module("replay_mod", ModuleCategory.Misc) {
@@ -48,18 +49,16 @@ class ReplayModule : Module("replay_mod", ModuleCategory.Misc) {
         val frames: List<ReplayFrame>
     )
 
+    // Các cờ này được đọc/ghi từ nhiều luồng (packet, UI, phát lại) nên cần @Volatile.
+    @Volatile
     private var isRecording = false
+    @Volatile
     private var isPlaying = false
-    private val frames = mutableListOf<ReplayFrame>()
+    private val frames = CopyOnWriteArrayList<ReplayFrame>()
     private var recordingStartTime = 0L
     private var lastRecordTime = 0L
     private var playbackThread: Thread? = null
     private var originalPosition: Vector3f? = null
-
-    // Interpolation support
-    private var lastFrame: ReplayFrame? = null
-    private var nextFrame: ReplayFrame? = null
-    private var interpolationProgress = 0f
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         if (!isEnabled) return
@@ -157,24 +156,27 @@ class ReplayModule : Module("replay_mod", ModuleCategory.Misc) {
         // Store current position before playback
         originalPosition = session.localPlayer.vec3Position
 
+        // Phát lại trên bản sao để không bị ảnh hưởng nếu `frames` bị sửa ở luồng khác
+        // (ví dụ .replay load trong lúc đang phát).
+        val playbackFrames = frames.toList()
+
         playbackThread = thread(name = "ReplayPlayback") {
             try {
-                frames.forEachIndexed { index, frame ->
+                playbackFrames.forEachIndexed { index, frame ->
                     if (!isPlaying) return@thread
 
-                    val delay = if (index < frames.size - 1) {
-                        ((frames[index + 1].timestamp - frame.timestamp) / playbackSpeed).toLong()
+                    val delay = if (index < playbackFrames.size - 1) {
+                        ((playbackFrames[index + 1].timestamp - frame.timestamp) / playbackSpeed).toLong()
                     } else 0L
 
-                    if (smoothPlayback && index < frames.size - 1) {
-                        lastFrame = frame
-                        nextFrame = frames[index + 1]
-                        interpolationProgress = 0f
+                    if (smoothPlayback && index < playbackFrames.size - 1) {
+                        val nextFrame = playbackFrames[index + 1]
+                        var interpolationProgress = 0f
 
                         while (interpolationProgress < 1f) {
                             if (!isPlaying) return@thread
 
-                            val interpolatedPosition = interpolatePosition(lastFrame!!, nextFrame!!, interpolationProgress)
+                            val interpolatedPosition = interpolatePosition(frame, nextFrame, interpolationProgress)
                             session.clientBound(MovePlayerPacket().apply {
                                 runtimeEntityId = session.localPlayer.runtimeEntityId
                                 position = interpolatedPosition
@@ -237,23 +239,28 @@ class ReplayModule : Module("replay_mod", ModuleCategory.Misc) {
             return
         }
 
-        try {
-            val replayDir = File(AppContext.instance.filesDir, "replays").apply { mkdirs() }
-            val file = File(replayDir, "$name.json")
+        // Chụp lại dữ liệu rồi mã hoá + ghi file ở luồng riêng,
+        // tránh chặn luồng xử lý packet hoặc luồng giao diện.
+        val snapshot = frames.toList()
+        thread(name = "ReplaySave") {
+            try {
+                val replayDir = File(AppContext.instance.filesDir, "replays").apply { mkdirs() }
+                val file = File(replayDir, "$name.json")
 
-            val metadata = ReplayMetadata(
-                frameCount = frames.size,
-                duration = frames.last().timestamp
-            )
+                val metadata = ReplayMetadata(
+                    frameCount = snapshot.size,
+                    duration = snapshot.last().timestamp
+                )
 
-            val replayData = ReplayData(metadata, frames)
-            file.writeText(Json.encodeToString(replayData))
+                val replayData = ReplayData(metadata, snapshot)
+                file.writeText(Json.encodeToString(replayData))
 
-            session.displayClientMessage(
-                "§aSaved replay §f$name §7(${metadata.frameCount} frames, ${metadata.duration / 1000}s)"
-            )
-        } catch (e: Exception) {
-            session.displayClientMessage("§cFailed to save replay: ${e.message}")
+                session.displayClientMessage(
+                    "§aSaved replay §f$name §7(${metadata.frameCount} frames, ${metadata.duration / 1000}s)"
+                )
+            } catch (e: Exception) {
+                session.displayClientMessage("§cFailed to save replay: ${e.message}")
+            }
         }
     }
 
