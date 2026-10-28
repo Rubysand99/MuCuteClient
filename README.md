@@ -17,6 +17,8 @@
 - **HUD**: On-screen module list (ArrayList), coordinates, facing direction and nearby player count, with optional rainbow colors.
 - **Config Profiles**: Save and switch between named setups in-game with `.config save|load|delete|list <name>`.
 - **Waypoints**: Mark locations per server and dimension with `.waypoint add|remove|list|goto|clear`, shown on screen with distance. Death points are saved automatically, and `.waypoint goto <name>` walks there using Baritone.
+- **Friends**: `.friend add|remove|list|clear <name>`. Auto-attack modules skip friends and ESP highlights them in green.
+- **Breadcrumbs**: Draws a fading trail of where you have walked.
 - **Module Search & Favorites**: Search modules by name and pin favorites (★) to the top of the menu.
 - **Cross-Platform Support**: Compatible with all **Minecraft Bedrock Edition** platforms via Android MITM control.
 

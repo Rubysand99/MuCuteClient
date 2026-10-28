@@ -69,6 +69,7 @@ import com.mucheng.mucute.client.game.module.particle.ExplosionParticleModule
 import com.mucheng.mucute.client.game.module.particle.EyeOfEnderDeathParticleModule
 import com.mucheng.mucute.client.game.module.particle.FizzParticleModule
 import com.mucheng.mucute.client.game.module.particle.HeartParticleModule
+import com.mucheng.mucute.client.game.module.visual.BreadcrumbsModule
 import com.mucheng.mucute.client.game.module.visual.ESPModule
 import com.mucheng.mucute.client.game.module.visual.FreeCameraModule
 import com.mucheng.mucute.client.game.module.visual.HudModule
@@ -189,6 +190,7 @@ object ModuleManager {
             add(BaritoneModule())
             add(HudModule())
             add(WaypointModule())
+            add(BreadcrumbsModule())
         }
         refreshActiveModules()
     }

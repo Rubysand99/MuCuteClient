@@ -11,6 +11,10 @@ object TranslationManager {
 
     private fun en() = buildMap {
         put("hud", "HUD")
+        put("breadcrumbs", "Breadcrumbs")
+        put("max_points", "Max Points")
+        put("min_distance", "Min Distance")
+        put("highlight_friends", "Highlight Friends")
         put("search_modules", "Search modules")
         put("no_modules_found", "No modules found")
         put("waypoints", "Waypoints")
@@ -18,7 +22,6 @@ object TranslationManager {
         put("max_distance", "Max Distance")
         put("show_module_list", "Module List")
         put("show_coordinates", "Coordinates")
-        put("show_direction", "Direction")
         put("show_nearby_players", "Nearby Players")
         put("right_align", "Right Align")
         put("rainbow", "Rainbow")

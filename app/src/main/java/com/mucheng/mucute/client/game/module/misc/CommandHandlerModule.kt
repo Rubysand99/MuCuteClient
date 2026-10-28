@@ -3,6 +3,7 @@ package com.mucheng.mucute.client.game.module.misc
 import com.mucheng.mucute.client.game.InterceptablePacket
 import com.mucheng.mucute.client.game.Module
 import com.mucheng.mucute.client.game.ModuleCategory
+import com.mucheng.mucute.client.game.FriendManager
 import com.mucheng.mucute.client.game.ModuleManager
 import com.mucheng.mucute.client.game.module.visual.WaypointModule
 import com.mucheng.mucute.client.game.world.Waypoint
@@ -40,6 +41,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
                     baritoneModule.handleGotoCommand(message)
                 }
                 "config" -> handleConfig(args)
+                "friend", "friends" -> handleFriend(args)
                 "waypoint", "wp" -> handleWaypoint(args)
                 "replay" -> {
                     val replayModule = ModuleManager.modules.find { it is ReplayModule } as? ReplayModule
@@ -154,6 +156,50 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
             }
         } catch (e: Exception) {
             message("§cConfig error: ${e.message}")
+        }
+    }
+
+    private fun handleFriend(args: List<String>) {
+        val tag = "§l§b[Friend] §r"
+        // Tên Bedrock có thể chứa khoảng trắng nên ghép lại phần còn lại của câu lệnh.
+        val name = args.drop(2).joinToString(" ").trim()
+
+        when (args.getOrNull(1)?.lowercase()) {
+            "add" -> when {
+                name.isEmpty() -> session.displayClientMessage("${tag}§cUsage: .friend add <name>")
+                FriendManager.add(name) -> session.displayClientMessage("${tag}§aAdded §f$name")
+                else -> session.displayClientMessage("${tag}§f$name §cis already a friend")
+            }
+
+            "remove", "delete" -> when {
+                name.isEmpty() -> session.displayClientMessage("${tag}§cUsage: .friend remove <name>")
+                FriendManager.remove(name) -> session.displayClientMessage("${tag}§aRemoved §f$name")
+                else -> session.displayClientMessage("${tag}§cNot a friend: §f$name")
+            }
+
+            "list" -> {
+                val friends = FriendManager.all
+                if (friends.isEmpty()) {
+                    session.displayClientMessage("${tag}§7No friends yet. Use §f.friend add <name>")
+                } else {
+                    session.displayClientMessage("${tag}§7Friends (${friends.size}): §f${friends.joinToString("§7, §f")}")
+                }
+            }
+
+            "clear" -> {
+                FriendManager.clear()
+                session.displayClientMessage("${tag}§aCleared friends list")
+            }
+
+            else -> session.displayClientMessage(
+                """
+                §l§b[Friend] §r§7Commands:
+                §f.friend add <name> §7- Add a friend (auto-attacks skip them)
+                §f.friend remove <name> §7- Remove a friend
+                §f.friend list §7- List friends
+                §f.friend clear §7- Remove all
+                """.trimIndent()
+            )
         }
     }
 
@@ -282,6 +328,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
             §f.help §7- Show all categories
             §f.config §7- Save/load config profiles
             §f.waypoint §7- Manage waypoints
+            §f.friend §7- Manage friends
             §r§7
         """.trimIndent()
 

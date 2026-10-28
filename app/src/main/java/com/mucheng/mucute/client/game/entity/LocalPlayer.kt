@@ -1,6 +1,7 @@
 package com.mucheng.mucute.client.game.entity
 
 import android.util.Log
+import com.mucheng.mucute.client.game.FriendManager
 import com.mucheng.mucute.client.game.GameSession
 import com.mucheng.mucute.client.game.inventory.AbstractInventory
 import com.mucheng.mucute.client.game.inventory.ContainerInventory
@@ -118,6 +119,11 @@ class LocalPlayer(val session: GameSession) : Player(0L, 0L, UUID.randomUUID(), 
     }
 
     fun attack(entity: Entity) {
+        // Các module tấn công tự động (Killaura, TriggerBot...) đều đi qua đây nên bỏ qua bạn bè ở một chỗ.
+        if (entity is Player && FriendManager.isFriend(entity.username)) {
+            return
+        }
+
         swing()
 
         val inventoryTransactionPacket = InventoryTransactionPacket()

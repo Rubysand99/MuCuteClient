@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import com.mucheng.mucute.client.game.FriendManager
 import com.mucheng.mucute.client.game.InterceptablePacket
 import com.mucheng.mucute.client.game.Module
 import com.mucheng.mucute.client.game.ModuleCategory
@@ -26,6 +27,7 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
         private const val BOX_HEIGHT = 1.8f // Standard player/entity height
         private const val PLAYER_EYE_HEIGHT = 1.62f
         private const val TEXT_PADDING = 8f
+        private val FRIEND_COLOR = Color.rgb(60, 220, 90)
 
         // 12 cạnh của hộp 3D, mỗi cạnh là một cặp chỉ số đỉnh (đỉnh 0..7).
         private val BOX_EDGES = intArrayOf(
@@ -46,6 +48,7 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     private val showAllEntities by boolValue("show_all_entities", false)
     private val showDistance by boolValue("show_distance", true)
     private val showNames by boolValue("show_names", true)
+    private val highlightFriends by boolValue("highlight_friends", true)
 
     // Box style options
     private val use2DBox by boolValue("2d_box", false)
@@ -86,6 +89,8 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     private val infoBuilder = StringBuilder()
 
     private val projector = WorldProjector()
+
+    private var baseColor = Color.RED
 
     // Toạ độ màn hình của các đỉnh nhìn thấy được (đã dồn lại, tối đa 8 đỉnh).
     private val screenX = FloatArray(8)
@@ -139,8 +144,7 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
         )
 
         boxPaint.strokeWidth = strokeWidth
-        boxPaint.color = Color.rgb(colorRed, colorGreen, colorBlue)
-        textPaint.color = boxPaint.color
+        baseColor = Color.rgb(colorRed, colorGreen, colorBlue)
 
         for (entity in entities) {
             if (shouldRenderEntity(entity)) {
@@ -150,6 +154,14 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     }
 
     private fun drawEntityBox(entity: Entity, screenWidth: Int, screenHeight: Int, canvas: Canvas) {
+        val color = if (highlightFriends && entity is Player && FriendManager.isFriend(entity.username)) {
+            FRIEND_COLOR
+        } else {
+            baseColor
+        }
+        boxPaint.color = color
+        textPaint.color = color
+
         val half = BOX_WIDTH / 2f
         val x = entity.posX
         val z = entity.posZ
