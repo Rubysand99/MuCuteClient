@@ -10,12 +10,15 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,10 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.ModuleContent
-import com.mucheng.mucute.client.ui.component.NeonTab
-import com.mucheng.mucute.client.ui.component.NeonTabBar
+import com.mucheng.mucute.client.ui.component.NavigationRailX
 import com.mucheng.mucute.client.ui.theme.NeonBrush
-import com.mucheng.mucute.client.ui.theme.NeonHorizontalDivider
+import com.mucheng.mucute.client.ui.theme.NeonVerticalDivider
+import com.mucheng.mucute.client.ui.theme.neonRailItemColors
 
 class OverlayClickGUI : OverlayWindow() {
 
@@ -88,14 +91,13 @@ class OverlayClickGUI : OverlayWindow() {
                         indication = null
                     ) {}
             ) {
-                Column(Modifier.fillMaxSize()) {
-                    Box(Modifier.weight(1f)) {
-                        DialogContent()
-                    }
-                    NeonHorizontalDivider()
-                    NeonTabBar {
+                Row(Modifier.fillMaxSize()) {
+                    NavigationRailX(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        windowInsets = WindowInsets(0, 0, 0, 0)
+                    ) {
                         ModuleCategory.entries.fastForEach { moduleCategory ->
-                            NeonTab(
+                            NavigationRailItem(
                                 selected = selectedModuleCategory === moduleCategory,
                                 onClick = {
                                     if (selectedModuleCategory !== moduleCategory) {
@@ -110,10 +112,14 @@ class OverlayClickGUI : OverlayWindow() {
                                 },
                                 label = {
                                     Text(stringResource(moduleCategory.labelResId))
-                                }
+                                },
+                                alwaysShowLabel = false,
+                                colors = neonRailItemColors()
                             )
                         }
                     }
+                    NeonVerticalDivider()
+                    DialogContent()
                 }
             }
         }
