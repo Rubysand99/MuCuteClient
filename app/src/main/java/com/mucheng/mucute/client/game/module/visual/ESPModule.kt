@@ -254,7 +254,8 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     private fun draw2DBox(canvas: Canvas, minX: Float, minY: Float, maxX: Float, maxY: Float) {
         val padding = boxPaint.strokeWidth / 2
         if (fillBoxes) {
-            fillPaint.color = (boxPaint.color and 0x00FFFFFF) or ((fillOpacity * 255 / 100) shl 24)
+            val base = boxPaint.color
+            fillPaint.color = Color.argb(fillOpacity * 255 / 100, Color.red(base), Color.green(base), Color.blue(base))
             canvas.drawRect(minX + padding, minY + padding, maxX - padding, maxY - padding, fillPaint)
         }
         canvas.drawRect(
