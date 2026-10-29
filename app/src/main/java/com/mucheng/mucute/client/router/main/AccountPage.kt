@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,6 +66,8 @@ fun AccountPageContent() {
         var showAddAccountDropDownMenu by remember { mutableStateOf(false) }
         var selectedAccountAction: FullBedrockSession? by remember { mutableStateOf(null) }
         var login: Boolean by remember { mutableStateOf(false) }
+        // Lỗi đăng nhập được giữ trong hộp thoại (không tự biến mất) để người dùng kịp đọc, chép và chụp lại.
+        var loginError: String? by remember { mutableStateOf(null) }
         val snackbarHostState = LocalSnackbarHostState.current
 
         Scaffold(
@@ -210,9 +213,8 @@ fun AccountPageContent() {
                 coroutineScope.launch {
                     snackbarHostState.currentSnackbarData?.dismiss()
                     throwable?.let {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.fetch_account_failed, it.message)
-                        )
+                        android.util.Log.e("AccountPage", "Login failed", it)
+                        loginError = describeError(it)
                     } ?: snackbarHostState.showSnackbar(
                         context.getString(R.string.fetch_account_successfully)
                     )
@@ -220,7 +222,50 @@ fun AccountPageContent() {
             }
         }
 
+
+        loginError?.let { details ->
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { loginError = null },
+                title = { Text(stringResource(R.string.fetch_account_failed, "")) },
+                text = {
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(
+                            details,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())
+                        )
+                    }
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { loginError = null }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(details))
+                    }) {
+                        Text("Copy")
+                    }
+                }
+            )
+        }
     }
+}
+
+/** Chuỗi mô tả lỗi và các nguyên nhân gốc (tối đa 5 cấp) để người dùng gửi lại khi báo lỗi. */
+private fun describeError(error: Throwable): String {
+    val builder = StringBuilder()
+    var current: Throwable? = error
+    var depth = 0
+    while (current != null && depth < 5) {
+        if (depth > 0) builder.append("\nCaused by: ")
+        builder.append(current.javaClass.name).append(": ").append(current.message ?: "(no message)")
+        current = current.cause
+        depth++
+    }
+    return builder.toString()
 }
 
 @SuppressLint("SetJavaScriptEnabled")
