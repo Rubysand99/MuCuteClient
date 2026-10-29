@@ -245,6 +245,14 @@ private fun ModuleCard(module: Module) {
                 )
             }
             if (module.isExpanded) {
+                ModuleDescriptions.of(module)?.let { description ->
+                    Text(
+                        description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 6.dp)
+                    )
+                }
                 values.fastForEach {
                     when (it) {
                         is BoolValue -> BoolValueContent(it)
