@@ -53,6 +53,16 @@ class GameSession(val muCuteRelaySession: MuCuteRelaySession) : ComposedPacketHa
     }
 
     override fun onDisconnect(reason: String) {
+        // Ghi lý do ngắt kết nối (logcat + toast) để biết là do đăng nhập, phiên bản hay server từ chối.
+        android.util.Log.e("GameSession", "Disconnected: $reason")
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            android.widget.Toast.makeText(
+                com.mucheng.mucute.client.application.AppContext.instance,
+                "Disconnected: $reason",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+
         localPlayer.onDisconnect()
         level.onDisconnect()
 
