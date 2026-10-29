@@ -5,6 +5,10 @@ import com.mucheng.mucute.client.game.Module
 import com.mucheng.mucute.client.game.ModuleCategory
 import com.mucheng.mucute.client.game.FriendManager
 import com.mucheng.mucute.client.game.MacroManager
+import com.mucheng.mucute.client.game.BoolValue
+import com.mucheng.mucute.client.game.FloatValue
+import com.mucheng.mucute.client.game.IntValue
+import com.mucheng.mucute.client.game.ModuleDescriptions
 import com.mucheng.mucute.client.game.ModuleManager
 import com.mucheng.mucute.client.game.module.visual.WaypointModule
 import com.mucheng.mucute.client.game.world.Waypoint
@@ -469,17 +473,62 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
         }
     }
 
+    /** `.help <command>` hiện cách dùng của lệnh; `.help <module>` hiện mô tả và các thiết lập của module. */
+    private fun displayTopicHelp(topic: String): Boolean {
+        when (val key = topic.lowercase()) {
+            "config", "friend", "friends", "macro", "macros", "waypoint", "wp", "replay" -> {
+                // Các lệnh này in phần hướng dẫn khi gọi không kèm tham số.
+                execute(".$key")
+                return true
+            }
+
+            "goto" -> {
+                session.displayClientMessage("§l§b[Goto] §r§7Usage: §f.goto <x> <y> <z> §7- Walk to the position with Baritone (module must exist).")
+                return true
+            }
+
+            "stats" -> {
+                session.displayClientMessage("§l§b[Stats] §r§f.stats §7- Total hits, attacks sent and hits/s over the last 5s; §f.stats reset §7- clear.")
+                return true
+            }
+        }
+
+        val module = ModuleManager.modules.find { !it.private && it.name.equals(topic, ignoreCase = true) }
+            ?: return false
+
+        val status = if (module.isEnabled) "§aON" else "§cOFF"
+        session.displayClientMessage("§l§b${module.name} §r$status §7(${module.category.name}) - toggle with §f.${module.name}")
+        ModuleDescriptions.of(module)?.let { session.displayClientMessage("§7$it") }
+        for (value in module.values) {
+            val detail = when (value) {
+                is BoolValue -> if (value.value) "on" else "off"
+                is FloatValue -> "${value.value} §7(${value.range.start}..${value.range.endInclusive})"
+                is IntValue -> "${value.value} §7(${value.range.first}..${value.range.last})"
+                else -> value.value.toString()
+            }
+            session.displayClientMessage("§7- §f${value.name}§7: §f$detail")
+        }
+        return true
+    }
+
     private fun displayHelp(category: String?) {
+        if (category != null && displayTopicHelp(category)) return
+
         val header = """
             §l§b[MuCuteClient] §r§7Module List
             §7Commands:
-            §f.help <category> §7- View modules in a category
+            §f.help <category> §7- View modules in a category (combat, motion, visual, ...)
+            §f.help <command> §7- Details of a command (config, friend, macro, waypoint, replay, goto, stats)
+            §f.help <module> §7- What a module does and its settings
             §f.<module> §7- Toggle a module
             §f.help §7- Show all categories
             §f.config §7- Save/load config profiles
             §f.waypoint §7- Manage waypoints
             §f.friend §7- Manage friends
             §f.macro §7- Run saved command sequences
+            §f.replay §7- Record and play back movement
+            §f.goto §7- Walk to a position (Baritone)
+            §f.stats §7- Hit statistics (§f.stats reset §7to clear)
             §r§7
         """.trimIndent()
 
