@@ -29,6 +29,9 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
         private const val TEXT_PADDING = 8f
         private val FRIEND_COLOR = Color.rgb(60, 220, 90)
 
+        // Màu theo khoảng cách chuyển từ đỏ (sát) sang xanh lá (xa) trong tầm này khi không đặt max_distance.
+        private const val DEFAULT_COLOR_RANGE = 64f
+
         // 12 cạnh của hộp 3D, mỗi cạnh là một cặp chỉ số đỉnh (đỉnh 0..7).
         private val BOX_EDGES = intArrayOf(
             0, 1, 1, 2, 2, 3, 3, 0,  // Front face
@@ -50,6 +53,17 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     private val showNames by boolValue("show_names", true)
     private val highlightFriends by boolValue("highlight_friends", true)
 
+    // Màu theo trạng thái (ưu tiên: bạn bè > theo khoảng cách > cầu vồng > màu cố định)
+    private val distanceColor by boolValue("distance_color", false)
+    private val rainbow by boolValue("rainbow", false)
+
+    // 0 = không giới hạn tầm nhìn
+    private val maxDistance by intValue("max_distance", 0, 0..256)
+
+    // Tô nền mờ cho hộp 2D
+    private val fillBoxes by boolValue("fill_boxes", false)
+    private val fillOpacity by intValue("fill_opacity", 25, 5..80)
+
     // Box style options
     private val use2DBox by boolValue("2d_box", false)
     private val use3DBox by boolValue("3d_box", true)
@@ -64,6 +78,10 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     // Các đối tượng dùng lại giữa các frame để tránh cấp phát trong onDraw.
     // render() chỉ chạy trên UI thread nên không cần đồng bộ.
     private val boxPaint = Paint().apply { style = Paint.Style.STROKE }
+
+    private val fillPaint = Paint().apply { style = Paint.Style.FILL }
+
+    private val hsv = floatArrayOf(0f, 0.75f, 1f)
 
     private val bgPaint = Paint().apply {
         color = Color.argb(160, 0, 0, 0) // Semi-transparent black background
@@ -91,6 +109,8 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
     private val projector = WorldProjector()
 
     private var baseColor = Color.RED
+    private var rainbowColor = Color.RED
+    private var maxDistanceSq = Float.MAX_VALUE
 
     // Toạ độ màn hình của các đỉnh nhìn thấy được (đã dồn lại, tối đa 8 đỉnh).
     private val screenX = FloatArray(8)
@@ -146,19 +166,37 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
         boxPaint.strokeWidth = strokeWidth
         baseColor = Color.rgb(colorRed, colorGreen, colorBlue)
 
+        if (rainbow) {
+            // Một vòng màu mỗi 6 giây, dùng chung cho mọi entity trong frame này.
+            hsv[0] = (System.currentTimeMillis() % 6000L) / 6000f * 360f
+            rainbowColor = Color.HSVToColor(hsv)
+        }
+        maxDistanceSq = if (maxDistance > 0) maxDistance.toFloat() * maxDistance else Float.MAX_VALUE
+
         for (entity in entities) {
-            if (shouldRenderEntity(entity)) {
+            if (shouldRenderEntity(entity) && entity.distanceSq(player) <= maxDistanceSq) {
                 drawEntityBox(entity, screenWidth, screenHeight, canvas)
             }
         }
     }
 
-    private fun drawEntityBox(entity: Entity, screenWidth: Int, screenHeight: Int, canvas: Canvas) {
-        val color = if (highlightFriends && entity is Player && FriendManager.isFriend(entity.username)) {
-            FRIEND_COLOR
-        } else {
-            baseColor
+    private fun entityColor(entity: Entity): Int {
+        if (highlightFriends && entity is Player && FriendManager.isFriend(entity.username)) {
+            return FRIEND_COLOR
         }
+
+        if (distanceColor) {
+            val range = if (maxDistance > 0) maxDistance.toFloat() else DEFAULT_COLOR_RANGE
+            val fraction = (entity.distance(session.localPlayer) / range).coerceIn(0f, 1f)
+            hsv[0] = 120f * fraction
+            return Color.HSVToColor(hsv)
+        }
+
+        return if (rainbow) rainbowColor else baseColor
+    }
+
+    private fun drawEntityBox(entity: Entity, screenWidth: Int, screenHeight: Int, canvas: Canvas) {
+        val color = entityColor(entity)
         boxPaint.color = color
         textPaint.color = color
 
@@ -215,6 +253,10 @@ class ESPModule : Module("esp", ModuleCategory.Visual), OverlayRenderer {
 
     private fun draw2DBox(canvas: Canvas, minX: Float, minY: Float, maxX: Float, maxY: Float) {
         val padding = boxPaint.strokeWidth / 2
+        if (fillBoxes) {
+            fillPaint.color = (boxPaint.color and 0x00FFFFFF) or ((fillOpacity * 255 / 100) shl 24)
+            canvas.drawRect(minX + padding, minY + padding, maxX - padding, maxY - padding, fillPaint)
+        }
         canvas.drawRect(
             minX + padding,
             minY + padding,

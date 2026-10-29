@@ -27,6 +27,11 @@ class NametagsModule : Module("nametags", ModuleCategory.Visual), OverlayRendere
     private val showDistance by boolValue("show_distance", true)
     private val scaleWithDistance by boolValue("scale_with_distance", true)
     private val fov by floatValue("fov", 110f, 40f..110f)
+    private val friendsOnly by boolValue("friends_only", false)
+    private val backgroundOpacity by intValue("background_opacity", 150, 0..255)
+    private val colorRed by intValue("color_red", 255, 0..255)
+    private val colorGreen by intValue("color_green", 255, 0..255)
+    private val colorBlue by intValue("color_blue", 255, 0..255)
 
     private companion object {
         const val HEALTH_ATTRIBUTE = "minecraft:health"
@@ -51,6 +56,7 @@ class NametagsModule : Module("nametags", ModuleCategory.Visual), OverlayRendere
     private val background = RectF()
     private val label = StringBuilder()
     private val hsv = floatArrayOf(0f, 1f, 1f)
+    private var nameColor = Color.WHITE
 
     private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -103,9 +109,12 @@ class NametagsModule : Module("nametags", ModuleCategory.Visual), OverlayRendere
         )
 
         val limit = maxDistance.toFloat()
+        backgroundPaint.alpha = backgroundOpacity
+        nameColor = Color.rgb(colorRed, colorGreen, colorBlue)
 
         for (entity in entities) {
             if (entity !is Player || entity === local) continue
+            if (friendsOnly && !FriendManager.isFriend(entity.username)) continue
 
             val dx = entity.posX - local.posX
             val dy = entity.posY - local.posY
@@ -162,7 +171,7 @@ class NametagsModule : Module("nametags", ModuleCategory.Visual), OverlayRendere
         background.set(left, top, left + boxWidth, y)
         canvas.drawRoundRect(background, 6f * scale, 6f * scale, backgroundPaint)
 
-        textPaint.color = if (FriendManager.isFriend(player.username)) FRIEND_COLOR else Color.WHITE
+        textPaint.color = if (FriendManager.isFriend(player.username)) FRIEND_COLOR else nameColor
         canvas.drawText(label, 0, label.length, x, top + pad + textHeight, textPaint)
 
         if (hasBar) {

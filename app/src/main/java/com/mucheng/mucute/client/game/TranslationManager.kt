@@ -11,6 +11,11 @@ object TranslationManager {
 
     private fun en() = buildMap {
         put("hud", "HUD")
+        put("distance_color", "Distance Color")
+        put("fill_boxes", "Fill Boxes")
+        put("fill_opacity", "Fill Opacity")
+        put("friends_only", "Friends Only")
+        put("background_opacity", "Background Opacity")
         put("nametags", "Nametags")
         put("show_health", "Show Health")
         put("scale_with_distance", "Scale With Distance")

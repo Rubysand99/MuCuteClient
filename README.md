@@ -17,9 +17,10 @@
 - **HUD**: On-screen module list (ArrayList), coordinates, facing direction and nearby player count, with optional rainbow colors.
 - **Config Profiles**: Save and switch between named setups in-game with `.config save|load|delete|list <name>`.
 - **Waypoints**: Mark locations per server and dimension with `.waypoint add|remove|list|goto|clear`, shown on screen with distance. Death points are saved automatically, and `.waypoint goto <name>` walks there using Baritone.
+- **ESP options**: Color boxes by distance (red close, green far) or with a rainbow, set a max range, and fill 2D boxes with a translucent tint.
 - **Friends**: `.friend add|remove|list|clear <name>`. Auto-attack modules skip friends and ESP highlights them in green.
 - **Breadcrumbs**: Draws a fading trail of where you have walked.
-- **Nametags**: Large readable name tags above players with distance and a health bar (when the server sends health), scaled by distance.
+- **Nametags**: Large readable name tags above players with distance and a health bar (when the server sends health), scaled by distance. Choose the text color and background opacity, or show tags for friends only.
 - **Macros**: Save a named sequence and run it in one command, e.g. `.macro add pvp on killaura; wait 5000; off killaura` then `.macro run pvp`. Steps: `on|off <module>`, `wait <ms>`, `.command`, `/server-command`. `.macro button <name>` puts a one-tap button for the macro on your screen (tap again while it runs to stop it).
 - **Module Search & Favorites**: Search modules by name and pin favorites (★) to the top of the menu. The ⚡ button next to the search box puts an on-screen toggle button for every favorite on your screen in one tap (tap again to hide them).
 - **Cross-Platform Support**: Compatible with all **Minecraft Bedrock Edition** platforms via Android MITM control.
