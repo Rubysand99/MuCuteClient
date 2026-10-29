@@ -20,7 +20,7 @@
 - **Friends**: `.friend add|remove|list|clear <name>`. Auto-attack modules skip friends and ESP highlights them in green.
 - **Breadcrumbs**: Draws a fading trail of where you have walked.
 - **Nametags**: Large readable name tags above players with distance and a health bar (when the server sends health), scaled by distance.
-- **Macros**: Save a named sequence and run it in one command, e.g. `.macro add pvp on killaura; wait 5000; off killaura` then `.macro run pvp`. Steps: `on|off <module>`, `wait <ms>`, `.command`, `/server-command`.
+- **Macros**: Save a named sequence and run it in one command, e.g. `.macro add pvp on killaura; wait 5000; off killaura` then `.macro run pvp`. Steps: `on|off <module>`, `wait <ms>`, `.command`, `/server-command`. `.macro button <name>` puts a one-tap button for the macro on your screen (tap again while it runs to stop it).
 - **Module Search & Favorites**: Search modules by name and pin favorites (★) to the top of the menu. The ⚡ button next to the search box puts an on-screen toggle button for every favorite on your screen in one tap (tap again to hide them).
 - **Cross-Platform Support**: Compatible with all **Minecraft Bedrock Edition** platforms via Android MITM control.
 

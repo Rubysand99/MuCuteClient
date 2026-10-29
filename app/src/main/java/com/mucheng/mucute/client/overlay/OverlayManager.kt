@@ -35,6 +35,7 @@ object OverlayManager {
                     .modules
                     .filter { it.isShortcutDisplayed }
                     .map { it.overlayShortcutButton })
+            addAll(MacroButtons.restoredWindows())
         }
     }
 

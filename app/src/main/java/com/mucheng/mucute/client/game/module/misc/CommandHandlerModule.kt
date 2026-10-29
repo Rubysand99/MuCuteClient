@@ -8,6 +8,7 @@ import com.mucheng.mucute.client.game.MacroManager
 import com.mucheng.mucute.client.game.ModuleManager
 import com.mucheng.mucute.client.game.module.visual.WaypointModule
 import com.mucheng.mucute.client.game.world.Waypoint
+import com.mucheng.mucute.client.overlay.MacroButtons
 import com.mucheng.mucute.client.game.world.WaypointManager
 import kotlin.math.floor
 import kotlin.math.sqrt
@@ -272,10 +273,21 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
                 }
             }
 
+            "button" -> {
+                if (name == null || MacroManager.get(name) == null) {
+                    session.displayClientMessage("${tag}§cUsage: .macro button <name> (macro must exist)")
+                } else if (MacroButtons.toggle(name)) {
+                    session.displayClientMessage("${tag}§aOn-screen button added for §f$name §7(drag it to move)")
+                } else {
+                    session.displayClientMessage("${tag}§7Removed the on-screen button for §f$name")
+                }
+            }
+
             "remove", "delete" -> {
                 if (name == null) {
                     session.displayClientMessage("${tag}§cUsage: .macro remove <name>")
                 } else if (MacroManager.remove(name)) {
+                    MacroButtons.hide(name)
                     session.displayClientMessage("${tag}§aRemoved §f$name")
                 } else {
                     session.displayClientMessage("${tag}§cMacro not found: §f$name")
@@ -312,6 +324,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
                 §f.macro run <name> §7- Run it
                 §f.macro stop §7- Stop the running macro
                 §f.macro show <name> §7- Show its steps
+                §f.macro button <name> §7- Toggle a one-tap on-screen button
                 §f.macro list / remove <name>
                 §7Steps: §fon <module>§7, §foff <module>§7, §fwait <ms>§7, §f.command§7, §f/command
                 §7Example: §f.macro add pvp on killaura; wait 5000; off killaura

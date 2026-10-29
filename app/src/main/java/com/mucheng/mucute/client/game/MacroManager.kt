@@ -1,6 +1,9 @@
 package com.mucheng.mucute.client.game
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.mucheng.mucute.client.application.AppContext
 import com.mucheng.mucute.client.game.module.misc.CommandHandlerModule
 import kotlinx.serialization.json.Json
@@ -45,8 +48,107 @@ object MacroManager {
     @Volatile
     private var runner: Thread? = null
 
+    /** Tên macro đang chạy (null nếu không có); là state của Compose nên nút trên màn hình tự đổi màu. */
+    var runningName by mutableStateOf<String?>(null)
+        private set
+
     val isRunning: Boolean
         get() = runner?.isAlive == true
+
+    // ---- Nút chạy macro trên màn hình: tên -> vị trí (x, y) ----
+    private val buttons = TreeMap<String, List<Int>>(String.CASE_INSENSITIVE_ORDER)
+
+    private var buttonsLoaded = false
+
+    private fun buttonsFile(): File = AppContext.instance.filesDir.resolve("macro_buttons.json")
+
+    @Synchronized
+    private fun ensureButtonsLoaded() {
+        if (buttonsLoaded) return
+        buttonsLoaded = true
+        try {
+            val file = buttonsFile()
+            if (file.exists()) {
+                buttons.putAll(json.decodeFromString<Map<String, List<Int>>>(file.readText()))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load macro buttons", e)
+        }
+    }
+
+    private fun saveButtons() {
+        try {
+            val target = buttonsFile()
+            val temp = File(target.parentFile, target.name + ".tmp")
+            temp.writeText(json.encodeToString(buttons.toMap()))
+            if (!temp.renameTo(target)) {
+                target.writeText(temp.readText())
+                temp.delete()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save macro buttons", e)
+        }
+    }
+
+    /** Tên các macro có nút trên màn hình (bỏ qua nút của macro đã bị xoá). */
+    @Synchronized
+    fun buttonNames(): List<String> {
+        ensureLoaded()
+        ensureButtonsLoaded()
+        return buttons.keys.filter { macros.containsKey(it) }
+    }
+
+    @Synchronized
+    fun hasButton(name: String): Boolean {
+        ensureButtonsLoaded()
+        return buttons.containsKey(name)
+    }
+
+    /** Vị trí đã lưu của nút, hoặc null nếu chưa có. */
+    @Synchronized
+    fun buttonPosition(name: String): Pair<Int, Int>? {
+        ensureButtonsLoaded()
+        val position = buttons[name] ?: return null
+        return position[0] to position[1]
+    }
+
+    /**
+     * Đăng ký nút cho macro [name] với vị trí mặc định nếu chưa có. Các nút xếp dọc theo cạnh phải
+     * (nút của module xếp từ cạnh trái), sang cột mới khi hết chiều cao màn hình.
+     */
+    @Synchronized
+    fun addButton(name: String) {
+        ensureButtonsLoaded()
+        if (buttons.containsKey(name)) return
+
+        val metrics = AppContext.instance.resources.displayMetrics
+        val density = metrics.density
+        val top = (72 * density).toInt()
+        val rowStep = (64 * density).toInt()
+        val columnStep = (150 * density).toInt()
+        val rowsPerColumn = ((metrics.heightPixels - top - rowStep) / rowStep).coerceAtLeast(1)
+
+        val index = buttons.size
+        val x = (metrics.widthPixels - columnStep * (1 + index / rowsPerColumn)).coerceAtLeast(0)
+        val y = top + (index % rowsPerColumn) * rowStep
+        buttons[name] = listOf(x, y)
+        saveButtons()
+    }
+
+    @Synchronized
+    fun setButtonPosition(name: String, x: Int, y: Int) {
+        ensureButtonsLoaded()
+        buttons[name] = listOf(x, y)
+        saveButtons()
+    }
+
+    @Synchronized
+    fun removeButton(name: String) {
+        ensureButtonsLoaded()
+        if (buttons.remove(name) != null) {
+            saveButtons()
+        }
+    }
 
     fun isValidName(name: String) = nameRegex.matches(name)
 
@@ -107,6 +209,7 @@ object MacroManager {
             return false
         }
         save()
+        removeButton(name)
         return true
     }
 
@@ -158,6 +261,7 @@ object MacroManager {
     fun stop(): Boolean {
         val thread = runner ?: return false
         runner = null
+        runningName = null
         thread.interrupt()
         return thread.isAlive
     }
@@ -191,12 +295,14 @@ object MacroManager {
                 synchronized(this) {
                     if (runner === Thread.currentThread()) {
                         runner = null
+                        runningName = null
                     }
                 }
             }
         }, "MacroRunner")
         thread.isDaemon = true
         runner = thread
+        runningName = name
         thread.start()
         return null
     }
@@ -220,6 +326,29 @@ object MacroManager {
                     module.isEnabled = lower.startsWith("on ")
                 }
             }
+        }
+    }
+
+    /**
+     * Dùng cho nút trên màn hình: chạm khi macro này đang chạy thì dừng, ngược lại thì chạy.
+     * Cần có phiên game (đang kết nối server); kết quả báo trong khung chat của game.
+     */
+    fun trigger(name: String) {
+        val commands = ModuleManager.modules.firstOrNull { it is CommandHandlerModule } as? CommandHandlerModule
+        if (commands == null || !commands.isSessionCreated) {
+            return
+        }
+        val session = commands.session
+
+        if (runningName == name) {
+            stop()
+            session.displayClientMessage("§l§b[Macro] §r§cStopped")
+            return
+        }
+
+        val error = run(name, session, commands)
+        if (error != null) {
+            session.displayClientMessage("§l§b[Macro] §r§c$error")
         }
     }
 
