@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -111,7 +112,7 @@ fun ModuleContent(
 ) {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-    val columnCount = sharedPreferences.getInt("module_columns", 3)
+    val configuredColumns = sharedPreferences.getInt("module_columns", 3)
 
     var modules by remember { mutableStateOf<List<Module>?>(null) }
 
@@ -125,7 +126,9 @@ fun ModuleContent(
         if (loaded != null) {
             val visible = filterModules(loaded, query, favoritesOnly)
 
-            Box(Modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                // Mỗi thẻ cần tối thiểu ~190dp để tên module không bị bẻ dọc; màn hẹp thì giảm số cột.
+                val columnCount = minOf(configuredColumns, (maxWidth / 190.dp).toInt()).coerceAtLeast(1)
                 if (visible.isEmpty()) {
                     Text(
                         "no_modules_found".translatedSelf,
@@ -219,12 +222,12 @@ private fun ModuleCard(module: Module) {
                 Text(
                     module.name.translatedSelf,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier,
+                    modifier = Modifier.weight(1f),
                     color = if (module.isExpanded) contentColorFor(MaterialTheme.colorScheme.primary) else contentColorFor(
                         MaterialTheme.colorScheme.background
                     )
                 )
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(6.dp))
                 Switch(
                     checked = module.isEnabled,
                     onCheckedChange = {
