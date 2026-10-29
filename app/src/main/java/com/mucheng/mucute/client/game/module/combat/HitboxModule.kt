@@ -17,7 +17,6 @@ class HitboxModule : Module("hitbox", ModuleCategory.Combat) {
     private val hitboxHeight by floatValue("height", 1.5f, 0.5f..12f)
     private var playersOnly by boolValue("players_only", true)
     private var mobsOnly by boolValue("include_mobs", false)
-    private val particleCount by intValue("particles", 8, 4..16)
     private val visualizeHitbox by boolValue("visualize", true)
     private var lastParticleTime = 0L
     private val particleInterval = 500L
@@ -32,6 +31,8 @@ class HitboxModule : Module("hitbox", ModuleCategory.Combat) {
             val currentTime = System.currentTimeMillis()
 
             if (session.localPlayer.tickExists % 40 == 0L) {
+                // Hạt chỉ hiện cho một thực thể mỗi 500ms, quyết định một lần cho cả lượt quét.
+                var showParticles = visualizeHitbox && currentTime - lastParticleTime >= particleInterval
                 session.level.entityMap.values.forEach { entity ->
                     if (entity.isTarget()) {
                         val metadata = EntityDataMap()
@@ -44,9 +45,10 @@ class HitboxModule : Module("hitbox", ModuleCategory.Combat) {
                             this.metadata = metadata
                         })
 
-                        if (visualizeHitbox && currentTime - lastParticleTime >= particleInterval) {
-                            visualizeHitboxWithParticles(entity)
+                        if (showParticles) {
+                            showParticles = false
                             lastParticleTime = currentTime
+                            visualizeHitboxWithParticles(entity)
                         }
                     }
                 }
@@ -74,54 +76,13 @@ class HitboxModule : Module("hitbox", ModuleCategory.Combat) {
     }
 
     private fun visualizeHitboxWithParticles(entity: Entity) {
-        val pos = entity.vec3Position
-        val radius = hitboxWidth / 2f
-
-        repeat(particleCount) { i ->
-            val angle = (i * (360.0 / particleCount)).toDouble()
-            val x = pos.x + radius * Math.cos(Math.toRadians(angle))
-            val z = pos.z + radius * Math.sin(Math.toRadians(angle))
-
-            session.clientBound(EntityEventPacket().apply {
-                runtimeEntityId = entity.runtimeEntityId
-                type = EntityEventType.LOVE_PARTICLES
-                data = 0
-            })
-        }
+        // Trước đây gửi cùng một gói 'particleCount' lần mà kết quả giống hệt nhau; một gói là đủ.
+        session.clientBound(EntityEventPacket().apply {
+            runtimeEntityId = entity.runtimeEntityId
+            type = EntityEventType.LOVE_PARTICLES
+            data = 0
+        })
     }
 
-    private fun EntityUnknown.isMob(): Boolean {
-        return this.identifier in MobList.mobTypes
-    }
-
-    private fun Player.isBot(): Boolean {
-        if (this is LocalPlayer) return false
-        val playerList = session.level.playerMap[this.uuid] ?: return true
-        return playerList.name.isBlank()
-    }
-
-    private fun Entity.isTarget(): Boolean {
-        return when (this) {
-            is LocalPlayer -> false
-            is Player -> {
-                if (mobsOnly) {
-                    false
-                } else if (playersOnly) {
-                    !this.isBot()
-                } else {
-                    !this.isBot()
-                }
-            }
-            is EntityUnknown -> {
-                if (playersOnly) {
-                    false
-                } else if (mobsOnly) {
-                    isMob()
-                } else {
-                    true
-                }
-            }
-            else -> false
-        }
-    }
+    private fun Entity.isTarget() = EntityTargets.isTarget(session, this, playersOnly, mobsOnly)
 }

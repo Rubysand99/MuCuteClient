@@ -41,7 +41,7 @@ class CrystalSmashModule : Module("crystal_smash", ModuleCategory.Combat) {
     private fun searchForCrystals(): List<Entity> {
         return session.level.entityMap.values
             .filter { entity ->
-                entity.distance(session.localPlayer) < rangeValue &&
+                entity.distanceSq(session.localPlayer) < rangeValue * rangeValue &&
                         entity is EntityUnknown &&
                         entity.identifier == "minecraft:end_crystal"
             }

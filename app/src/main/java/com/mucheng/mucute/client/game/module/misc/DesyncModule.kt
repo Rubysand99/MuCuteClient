@@ -13,15 +13,28 @@ import kotlin.random.Random
 
 class DesyncModule : Module("desync", ModuleCategory.Misc) {
 
+    @Volatile
     private var isDesynced = false
     private val storedPackets = ConcurrentLinkedQueue<PlayerAuthInputPacket>()
+
+    // Mỗi lần bật tăng một đơn vị; vòng gửi lại cũ tự dừng nếu thấy số này đã đổi (bật lại hoặc ngắt kết nối).
+    @Volatile
+    private var generation = 0
     private val updateDelay = 1000L
     private val minResendInterval = 100L
     private val maxResendInterval = 300L
 
     override fun onEnabled() {
         super.onEnabled()
+        generation++
+        storedPackets.clear()
         isDesynced = true
+    }
+
+    override fun onDisconnect(reason: String) {
+        generation++
+        isDesynced = false
+        storedPackets.clear()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -29,13 +42,13 @@ class DesyncModule : Module("desync", ModuleCategory.Misc) {
         super.onDisabled()
         isDesynced = false
 
+        val myGeneration = generation
+        val gameSession = session
         GlobalScope.launch {
             delay(updateDelay)
-            while (storedPackets.isNotEmpty()) {
-                val packet = storedPackets.poll()
-                if (packet != null) {
-                    session.clientBound(packet)
-                }
+            while (generation == myGeneration) {
+                val packet = storedPackets.poll() ?: break
+                gameSession.clientBound(packet)
                 delay(Random.nextLong(minResendInterval, maxResendInterval))
             }
         }
@@ -48,9 +61,17 @@ class DesyncModule : Module("desync", ModuleCategory.Misc) {
 
         val packet = interceptablePacket.packet
         if (packet is PlayerAuthInputPacket) {
+            // Giới hạn bộ nhớ khi bật rất lâu: bỏ gói cũ nhất.
+            if (storedPackets.size >= MAX_STORED_PACKETS) {
+                storedPackets.poll()
+            }
             storedPackets.add(packet)
             interceptablePacket.intercept()
         }
+    }
+
+    private companion object {
+        const val MAX_STORED_PACKETS = 1200
     }
 
 }

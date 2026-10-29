@@ -24,49 +24,50 @@ class TriggerBotModule : Module("trigger_bot", ModuleCategory.Combat) {
             val minAttackDelay = 1000L / cpsValue
 
             if ((currentTime - lastAttackTime) >= minAttackDelay) {
-                session.level.entityMap.values
-                    .filter { entity ->
-                        entity.distance(session.localPlayer) <= rangeValue.toDouble() &&
-                                isLookingAt(entity) &&
-                                entity.isTarget()
-                    }
-                    .firstOrNull()?.let { target ->
-                        session.localPlayer.attack(target)
-                        lastAttackTime = currentTime
-                    }
+                val local = session.localPlayer
+                val rangeSq = rangeValue * rangeValue
+
+                // Hướng nhìn chỉ tính một lần cho cả vòng lặp.
+                val rot = local.vec3Rotation
+                val yawRad = Math.toRadians(rot.y.toDouble() + 90.0)
+                val pitchRad = Math.toRadians(-rot.x.toDouble())
+                val lookX = Math.cos(pitchRad) * Math.cos(yawRad)
+                val lookY = Math.sin(pitchRad)
+                val lookZ = Math.cos(pitchRad) * Math.sin(yawRad)
+
+                for (entity in session.level.entityMap.values) {
+                    if (entity.distanceSq(local) > rangeSq) continue
+                    if (!EntityTargets.isTarget(session, entity, playersOnly, mobsOnly)) continue
+                    if (!isLookingAt(local.vec3Position, entity, lookX, lookY, lookZ)) continue
+
+                    local.attack(entity)
+                    lastAttackTime = currentTime
+                    break
+                }
             }
         }
     }
 
-    private fun isLookingAt(entity: Entity): Boolean {
-        val playerPos = session.localPlayer.vec3Position
+    private fun isLookingAt(
+        playerPos: Vector3f,
+        entity: Entity,
+        lookX: Double,
+        lookY: Double,
+        lookZ: Double
+    ): Boolean {
         val entityPos = entity.vec3Position
 
-        val bodyPoints = arrayOf(
-            Vector3f.from(entityPos.x, entityPos.y, entityPos.z),
-            Vector3f.from(entityPos.x, entityPos.y + 0.9f, entityPos.z),
-            Vector3f.from(entityPos.x, entityPos.y + 1.8f, entityPos.z)
-        )
-
-        for (targetPos in bodyPoints) {
-            val dx = targetPos.x.toDouble() - playerPos.x.toDouble()
-            val dy = targetPos.y.toDouble() - playerPos.y.toDouble()
-            val dz = targetPos.z.toDouble() - playerPos.z.toDouble()
+        // Kiểm tra chân, giữa người và đầu.
+        for (offset in BODY_OFFSETS) {
+            val dx = entityPos.x.toDouble() - playerPos.x.toDouble()
+            val dy = entityPos.y.toDouble() + offset - playerPos.y.toDouble()
+            val dz = entityPos.z.toDouble() - playerPos.z.toDouble()
 
             val distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+            if (distance < 1e-6) return true
 
-            val playerRot = session.localPlayer.vec3Rotation
-            val yawRad = Math.toRadians(playerRot.y.toDouble() + 90.0)
-            val pitchRad = Math.toRadians(-playerRot.x.toDouble())
-
-            val lookX = Math.cos(pitchRad) * Math.cos(yawRad)
-            val lookY = Math.sin(pitchRad)
-            val lookZ = Math.cos(pitchRad) * Math.sin(yawRad)
-
-            val dot = (dx * lookX + dy * lookY + dz * lookZ) / distance
-            val angle = Math.toDegrees(Math.acos(dot))
-
-            if (angle <= 20.0) {
+            val dot = ((dx * lookX + dy * lookY + dz * lookZ) / distance).coerceIn(-1.0, 1.0)
+            if (Math.toDegrees(Math.acos(dot)) <= MAX_ANGLE_DEGREES) {
                 return true
             }
         }
@@ -74,38 +75,8 @@ class TriggerBotModule : Module("trigger_bot", ModuleCategory.Combat) {
         return false
     }
 
-    private fun Entity.isTarget(): Boolean {
-        return when (this) {
-            is LocalPlayer -> false
-            is Player -> {
-                if (mobsOnly) {
-                    false
-                } else if (playersOnly) {
-                    !this.isBot()
-                } else {
-                    !this.isBot()
-                }
-            }
-            is EntityUnknown -> {
-                if (playersOnly) {
-                    false
-                } else if (mobsOnly) {
-                    this.isMob()
-                } else {
-                    true
-                }
-            }
-            else -> false
-        }
-    }
-
-    private fun EntityUnknown.isMob(): Boolean {
-        return this.identifier in MobList.mobTypes
-    }
-
-    private fun Player.isBot(): Boolean {
-        if (this is LocalPlayer) return false
-        val playerList = session.level.playerMap[this.uuid] ?: return true
-        return playerList.name.isBlank()
+    private companion object {
+        val BODY_OFFSETS = doubleArrayOf(0.0, 0.9, 1.8)
+        const val MAX_ANGLE_DEGREES = 20.0
     }
 }

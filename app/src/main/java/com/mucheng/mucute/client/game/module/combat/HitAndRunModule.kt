@@ -30,37 +30,20 @@ class HitAndRunModule : Module("hitandrun", ModuleCategory.Combat) {
         if (packet is PlayerAuthInputPacket) {
             val currentTime = System.currentTimeMillis()
 
-            val nearbyEntities = session.level.entityMap.values.filter {
-                it.distance(session.localPlayer) <= range &&
-                        it != session.localPlayer &&
-                        isValidTarget(it)
-            }
-
-            if (nearbyEntities.isNotEmpty() && currentTime - lastHitTime >= hitSpeed) {
-                executeCombo(nearbyEntities.first())
-                lastHitTime = currentTime
-            }
-        }
-    }
-
-    private fun isValidTarget(entity: Entity): Boolean {
-        return when (entity) {
-            is LocalPlayer -> false
-            is Player -> {
-                if (playersOnly) {
-                    !isBot(entity)
-                } else {
-                    false
+            if (currentTime - lastHitTime >= hitSpeed) {
+                val local = session.localPlayer
+                val rangeSq = range * range
+                val target = session.level.entityMap.values.firstOrNull {
+                    it !== local &&
+                            it.distanceSq(local) <= rangeSq &&
+                            EntityTargets.isTarget(session, it, playersOnly, false)
+                }
+                if (target != null) {
+                    executeCombo(target)
+                    lastHitTime = currentTime
                 }
             }
-            else -> !playersOnly
         }
-    }
-
-    private fun isBot(player: Player): Boolean {
-        if (player is LocalPlayer) return false
-        val playerList = session.level.playerMap[player.uuid] ?: return true
-        return playerList.name.isBlank()
     }
 
     private fun executeCombo(target: Entity) {

@@ -92,43 +92,20 @@ class KillauraModule : Module("killaura", ModuleCategory.Combat) {
 
 
 
-    private fun Entity.isTarget(): Boolean {
-        return when (this) {
-            is LocalPlayer -> false
-            is Player -> {
-                if (mobsOnly) {
-                    false
-                } else if (playersOnly) {
-                    !this.isBot()
-                } else {
-                    !this.isBot()
-                }
-            }
-            is EntityUnknown -> {
-                if (mobsOnly) {
-                    isMob()
-                } else if (playersOnly) {
-                    false
-                } else {
-                    true
-                }
-            }
-            else -> false
-        }
-    }
+    private val targets = ArrayList<Entity>()
 
-    private fun EntityUnknown.isMob(): Boolean {
-        return this.identifier in MobList.mobTypes
-    }
-
-    private fun Player.isBot(): Boolean {
-        if (this is LocalPlayer) return false
-        val playerList = session.level.playerMap[this.uuid] ?: return true
-        return playerList.name.isBlank()
-    }
-
+    /** Dùng lại một danh sách giữa các tick để không cấp phát mỗi lần; chỉ chạy trên luồng xử lý packet. */
     private fun searchForClosestEntities(): List<Entity> {
-        return session.level.entityMap.values
-            .filter { entity -> entity.distance(session.localPlayer) < rangeValue && entity.isTarget() }
+        val local = session.localPlayer
+        val rangeSq = rangeValue * rangeValue
+        targets.clear()
+        for (entity in session.level.entityMap.values) {
+            if (entity.distanceSq(local) < rangeSq &&
+                EntityTargets.isTarget(session, entity, playersOnly, mobsOnly)
+            ) {
+                targets.add(entity)
+            }
+        }
+        return targets
     }
 }
