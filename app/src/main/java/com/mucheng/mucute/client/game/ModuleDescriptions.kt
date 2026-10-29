@@ -8,7 +8,7 @@ object ModuleDescriptions {
 
     private val descriptions = mapOf(
         // Combat
-        "killaura" to "Tự động tấn công thực thể gần bạn trong tầm 'range'. 'cps' là số đòn mỗi giây, 'players_only'/'mobs_only' lọc mục tiêu, 'tp_aura' dịch chuyển tới mục tiêu. Bạn bè (.friend) không bị đánh.",
+        "killaura" to "Tự động tấn công thực thể gần bạn trong tầm 'range'. 'cps' là số đòn mỗi giây (giữ đúng trung bình, tối đa 40), 'max_targets' là số mục tiêu mỗi lượt (sắp gần nhất trước, hoặc ít máu nhất nếu bật 'lowest_health_first'), 'packets' nhân số đòn, 'tp_aura' dịch chuyển tới mục tiêu. Bạn bè (.friend) không bị đánh.",
         "trigger_bot" to "Chỉ tấn công khi có mục tiêu nằm trong tầm 'range' (theo 'cps'), lọc người chơi/quái bằng 2 tuỳ chọn.",
         "hitbox" to "Phóng to vùng trúng đòn (width/height) của thực thể khác để dễ đánh trúng hơn; 'visualize' hiện hạt để bạn thấy vùng đó.",
         "crystal_smash" to "Tự động tấn công thực thể (như pha lê) trong tầm 'range'; 'delay', 'cps', 'packets' chỉnh tốc độ.",

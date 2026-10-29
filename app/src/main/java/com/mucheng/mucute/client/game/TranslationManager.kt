@@ -133,6 +133,8 @@ object TranslationManager {
         put("mobs_only", "Mob Aura")
         put("time", "Time")
         put("keep_distance", "Distance")
+        put("max_targets", "Max Targets")
+        put("lowest_health_first", "Lowest Health First")
         put("tp_speed", "Teleport Speed")
         put("packets", "Packets")
         put("strafe", "Strafe")

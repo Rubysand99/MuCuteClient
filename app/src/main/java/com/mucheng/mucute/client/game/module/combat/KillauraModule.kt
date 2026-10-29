@@ -15,15 +15,22 @@ class KillauraModule : Module("killaura", ModuleCategory.Combat) {
     private var tpAuraEnabled by boolValue("tp_aura", false)
 
     private var rangeValue by floatValue("range", 3.7f, 2f..7f)
-    private var attackInterval by intValue("delay", 5, 1..20)
-    private var cpsValue by intValue("cps", 10, 1..20)
+    // delay = số tick tối thiểu giữa hai lượt; 1 nghĩa là mọi tick đều được phép, tốc độ do cps quyết định.
+    private var attackInterval by intValue("delay", 1, 1..20)
+    private var cpsValue by intValue("cps", 12, 1..40)
+    private var maxTargets by intValue("max_targets", 1, 1..5)
+    private var lowestHealthFirst by boolValue("lowest_health_first", false)
     private var boost by intValue("packets", 1, 1..10)
     private var tpspeed by intValue("tp_speed", 1000, 100..2000)
 
     private var distanceToKeep by floatValue("keep_distance", 2.0f, 1f..5f)
 
-    private var lastAttackTime = 0L
+    private var lastTickTime = 0L
     private var tpCooldown = 0L
+
+    // Xô token: mỗi tick cộng thêm cps * thời gian trôi qua, mỗi đòn tốn 1 token. Nhờ vậy cps được giữ đúng
+    // trung bình (không bị làm tròn theo nhịp tick) và cps > 20 vẫn đạt được bằng nhiều đòn mỗi tick.
+    private var tokens = 0f
 
     override fun beforePacketBound(interceptablePacket: InterceptablePacket) {
         if (!isEnabled) return
@@ -31,26 +38,37 @@ class KillauraModule : Module("killaura", ModuleCategory.Combat) {
         val packet = interceptablePacket.packet
         if (packet is PlayerAuthInputPacket) {
             val currentTime = System.currentTimeMillis()
-            val minAttackDelay = 1000L / cpsValue
+            val elapsed = if (lastTickTime == 0L) 0L else (currentTime - lastTickTime).coerceIn(0L, 250L)
+            lastTickTime = currentTime
+            tokens = (tokens + cpsValue * elapsed / 1000f).coerceAtMost(MAX_HITS_PER_TICK.toFloat())
 
-            if (packet.tick % attackInterval == 0L && (currentTime - lastAttackTime) >= minAttackDelay) {
-                val closestEntities = searchForClosestEntities()
-                if (closestEntities.isEmpty()) return
+            if (packet.tick % attackInterval != 0L) return
 
-                closestEntities.forEach { entity ->
-                    // Handle teleportation once when TP Aura is enabled
-                    if (tpAuraEnabled && (currentTime - tpCooldown) >= tpspeed) {
-                        teleportTo(entity, distanceToKeep)
-                        tpCooldown = currentTime
-                    }
+            val hits = tokens.toInt().coerceAtMost(MAX_HITS_PER_TICK)
+            if (hits <= 0) return
 
-                    repeat(boost) {
-                        session.localPlayer.attack(entity)
-                    }
+            val closestEntities = searchForClosestEntities()
+            if (closestEntities.isEmpty()) {
+                // Không có mục tiêu thì không dồn token để khỏi tung một loạt đòn khi mục tiêu xuất hiện.
+                tokens = tokens.coerceAtMost(1f)
+                return
+            }
 
-                    lastAttackTime = currentTime
+            val count = minOf(maxTargets, closestEntities.size)
+            for (i in 0 until count) {
+                val entity = closestEntities[i]
+                // Dịch chuyển chỉ với mục tiêu đầu tiên (gần nhất / ưu tiên nhất).
+                if (i == 0 && tpAuraEnabled && (currentTime - tpCooldown) >= tpspeed) {
+                    teleportTo(entity, distanceToKeep)
+                    tpCooldown = currentTime
+                }
+
+                repeat(hits * boost) {
+                    session.localPlayer.attack(entity)
                 }
             }
+
+            tokens -= hits
         }
     }
 
@@ -94,7 +112,21 @@ class KillauraModule : Module("killaura", ModuleCategory.Combat) {
 
     private val targets = ArrayList<Entity>()
 
-    /** Dùng lại một danh sách giữa các tick để không cấp phát mỗi lần; chỉ chạy trên luồng xử lý packet. */
+    private val byDistance = Comparator<Entity> { a, b ->
+        a.distanceSq(session.localPlayer).compareTo(b.distanceSq(session.localPlayer))
+    }
+
+    private val byHealth = Comparator<Entity> { a, b ->
+        val healthA = a.attributes["minecraft:health"]?.value ?: Float.MAX_VALUE
+        val healthB = b.attributes["minecraft:health"]?.value ?: Float.MAX_VALUE
+        val diff = healthA.compareTo(healthB)
+        if (diff != 0) diff else byDistance.compare(a, b)
+    }
+
+    /**
+     * Các mục tiêu trong tầm, đã sắp xếp: gần nhất trước, hoặc ít máu nhất trước (nếu server gửi máu;
+     * thực thể không rõ máu xếp sau). Dùng lại một danh sách giữa các tick; chỉ chạy trên luồng xử lý packet.
+     */
     private fun searchForClosestEntities(): List<Entity> {
         val local = session.localPlayer
         val rangeSq = rangeValue * rangeValue
@@ -106,6 +138,13 @@ class KillauraModule : Module("killaura", ModuleCategory.Combat) {
                 targets.add(entity)
             }
         }
+        if (targets.size > 1) {
+            targets.sortWith(if (lowestHealthFirst) byHealth else byDistance)
+        }
         return targets
+    }
+
+    private companion object {
+        const val MAX_HITS_PER_TICK = 3
     }
 }
