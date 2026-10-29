@@ -8,6 +8,8 @@ import android.os.Build
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -283,6 +285,9 @@ fun HomePageContent() {
                 }.getOrNull() ?: "127.0.0.1"
             }
 
+            val clipboardManager = LocalClipboardManager.current
+            val context = LocalContext.current
+
             AlertDialog(
                 onDismissRequest = { showConnectionDialog = false },
                 title = {
@@ -303,10 +308,19 @@ fun HomePageContent() {
                                 fontWeight = FontWeight.Bold
                             )
                         )
-                        Text(
-                            ipAddress,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                ipAddress,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = {
+                                clipboardManager.setText(AnnotatedString(ipAddress))
+                                Toast.makeText(context, "Copied: $ipAddress", Toast.LENGTH_SHORT).show()
+                            }) {
+                                Text("Copy")
+                            }
+                        }
 
                         Text(
                             "Port:",
@@ -314,10 +328,19 @@ fun HomePageContent() {
                                 fontWeight = FontWeight.Bold
                             )
                         )
-                        Text(
-                            "19132",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "19132",
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = {
+                                clipboardManager.setText(AnnotatedString("19132"))
+                                Toast.makeText(context, "Copied: 19132", Toast.LENGTH_SHORT).show()
+                            }) {
+                                Text("Copy")
+                            }
+                        }
                     }
                 },
                 confirmButton = {
