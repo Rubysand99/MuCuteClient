@@ -17,3 +17,10 @@
 -keep interface io.jsonwebtoken.** { *; }
 -keep class com.fasterxml.jackson.** { *; }
 -keepattributes Signature,InnerClasses,EnclosingMethod,*Annotation*
+
+# Giữ toàn bộ giao thức Bedrock và relay: gói tin được tạo/giải mã bằng reflection và theo tên enum,
+# nếu R8 đổi tên hoặc cắt bớt thì game báo "Server sent broken packet".
+-keep class org.cloudburstmc.** { *; }
+-keep class com.mucheng.mucute.relay.** { *; }
+-keep class it.unimi.dsi.fastutil.** { *; }
+-keepclassmembers enum * { *; }
