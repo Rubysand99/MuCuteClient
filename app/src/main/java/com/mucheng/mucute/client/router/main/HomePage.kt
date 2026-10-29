@@ -349,6 +349,19 @@ fun HomePageContent() {
                     ) {
                         Text("OK")
                     }
+                },
+                dismissButton = {
+                    // Chép nhật ký (logcat) của chính app để gửi khi báo lỗi kết nối; không cần cắm máy tính.
+                    TextButton(onClick = {
+                        val log = runCatching {
+                            val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "600", "*:W"))
+                            process.inputStream.bufferedReader().use { it.readText() }
+                        }.getOrElse { "Cannot read log: ${it.message}" }
+                        clipboardManager.setText(AnnotatedString(log))
+                        Toast.makeText(context, "Log copied (${log.length} chars)", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("Copy log")
+                    }
                 }
             )
         }
