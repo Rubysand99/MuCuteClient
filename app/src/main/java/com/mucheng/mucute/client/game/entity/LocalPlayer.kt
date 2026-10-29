@@ -125,6 +125,7 @@ class LocalPlayer(val session: GameSession) : Player(0L, 0L, UUID.randomUUID(), 
         }
 
         swing()
+        com.mucheng.mucute.client.game.HitStats.recordAttack(entity.runtimeEntityId)
 
         val inventoryTransactionPacket = InventoryTransactionPacket()
         inventoryTransactionPacket.transactionType = InventoryTransactionType.ITEM_USE_ON_ENTITY

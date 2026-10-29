@@ -23,6 +23,7 @@ class HudModule : Module("hud", ModuleCategory.Visual), OverlayRenderer {
     private val showCoordinates by boolValue("show_coordinates", true)
     private val showDirection by boolValue("show_direction", true)
     private val showNearbyPlayers by boolValue("show_nearby_players", true)
+    private val showHitStats by boolValue("show_hit_stats", true)
     private val rightAlign by boolValue("right_align", true)
     private val rainbow by boolValue("rainbow", false)
     private val textSize by intValue("text_size", 26, 14..48)
@@ -34,6 +35,7 @@ class HudModule : Module("hud", ModuleCategory.Visual), OverlayRenderer {
         const val MARGIN = 16f
         const val NEARBY_PLAYER_RANGE = 64f
         const val RAINBOW_STEP = 14f
+        const val HIT_WINDOW_MS = 5000L
 
         // Bedrock: yaw 0 = nam (+Z), 90 = tây (-X), 180 = bắc (-Z), 270 = đông (+X).
         val DIRECTIONS = arrayOf("S (+Z)", "W (-X)", "N (-Z)", "E (+X)")
@@ -112,6 +114,19 @@ class HudModule : Module("hud", ModuleCategory.Visual), OverlayRenderer {
             infoBuilder.append("Players (").append(NEARBY_PLAYER_RANGE.toInt()).append("m): ").append(nearby)
             canvas.drawText(infoBuilder, 0, infoBuilder.length, MARGIN, infoY, textPaint)
             infoY += lineHeight
+        }
+
+        if (showHitStats) {
+            val attacks = com.mucheng.mucute.client.game.HitStats.attacksIn(HIT_WINDOW_MS)
+            // Chỉ hiện khi vừa đánh gần đây để HUD không bị rối lúc không giao chiến.
+            if (attacks > 0) {
+                val hits = com.mucheng.mucute.client.game.HitStats.hitsIn(HIT_WINDOW_MS)
+                infoBuilder.setLength(0)
+                infoBuilder.append("Hits: ").append(hits).append(" / Sent: ").append(attacks)
+                    .append(" (").append(HIT_WINDOW_MS / 1000).append("s)")
+                canvas.drawText(infoBuilder, 0, infoBuilder.length, MARGIN, infoY, textPaint)
+                infoY += lineHeight
+            }
         }
 
         if (!showModuleList) return

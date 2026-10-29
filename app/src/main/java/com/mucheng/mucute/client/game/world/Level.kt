@@ -8,7 +8,9 @@ import com.mucheng.mucute.client.game.entity.Player
 import org.cloudburstmc.protocol.bedrock.packet.AddEntityPacket
 import org.cloudburstmc.protocol.bedrock.packet.AddItemEntityPacket
 import org.cloudburstmc.protocol.bedrock.packet.AddPlayerPacket
+import org.cloudburstmc.protocol.bedrock.data.entity.EntityEventType
 import org.cloudburstmc.protocol.bedrock.packet.BedrockPacket
+import org.cloudburstmc.protocol.bedrock.packet.EntityEventPacket
 import org.cloudburstmc.protocol.bedrock.packet.MobEffectPacket
 import org.cloudburstmc.protocol.bedrock.packet.MoveEntityAbsolutePacket
 import org.cloudburstmc.protocol.bedrock.packet.MoveEntityDeltaPacket
@@ -138,6 +140,9 @@ class Level(val session: GameSession) {
             is SetEntityDataPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
             is UpdateAttributesPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
             is MobEffectPacket -> entityMap[packet.runtimeEntityId]?.onPacketBound(packet)
+            is EntityEventPacket -> if (packet.type == EntityEventType.HURT) {
+                com.mucheng.mucute.client.game.HitStats.onHurt(packet.runtimeEntityId)
+            }
             is SetEntityLinkPacket -> entityMap.values.forEach { entity ->
                 entity.onPacketBound(packet)
             }

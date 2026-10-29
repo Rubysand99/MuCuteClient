@@ -66,6 +66,7 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
                 baritoneModule.handleGotoCommand(message)
             }
             "config" -> handleConfig(args)
+            "stats" -> handleStats(args)
             "friend", "friends" -> handleFriend(args)
             "macro", "macros" -> handleMacro(args, message)
             "waypoint", "wp" -> handleWaypoint(args)
@@ -182,6 +183,25 @@ class CommandHandlerModule : Module("command_handler", ModuleCategory.Misc, true
         } catch (e: Exception) {
             message("§cConfig error: ${e.message}")
         }
+    }
+
+    private fun handleStats(args: List<String>) {
+        val tag = "§l§b[Stats] §r"
+        val stats = com.mucheng.mucute.client.game.HitStats
+        if (args.getOrNull(1)?.lowercase() == "reset") {
+            stats.reset()
+            session.displayClientMessage("${tag}§aReset")
+            return
+        }
+
+        val (attacks, hits) = stats.totals()
+        val recentAttacks = stats.attacksIn(5000)
+        val recentHits = stats.hitsIn(5000)
+        session.displayClientMessage(
+            "${tag}§7Total: §f$hits §7confirmed hits / §f$attacks §7attacks sent. " +
+                    "Last 5s: §f${recentHits / 5f}§7 hits/s, §f${recentAttacks / 5f}§7 attacks/s"
+        )
+        session.displayClientMessage("${tag}§7Estimate only: a hit counts when the server sends a HURT event right after our attack. Use §f.stats reset §7to clear.")
     }
 
     private fun handleFriend(args: List<String>) {
