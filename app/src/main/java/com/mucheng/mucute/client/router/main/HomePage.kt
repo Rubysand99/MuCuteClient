@@ -191,11 +191,22 @@ fun HomePageContent() {
                 message = context.getString(R.string.backend_disconnected)
             )
         }
+        val logClipboard = LocalClipboardManager.current
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
                         Text(stringResource(R.string.home))
+                    },
+                    actions = {
+                        // Luôn có sẵn để lấy nhật ký sau khi bị ngắt kết nối (hộp thoại How to Connect chỉ hiện lúc bật relay).
+                        TextButton(onClick = {
+                            val log = readAppLog()
+                            logClipboard.setText(AnnotatedString(log))
+                            Toast.makeText(context, "Log copied (${log.length} chars)", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Text("Copy log")
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -353,10 +364,7 @@ fun HomePageContent() {
                 dismissButton = {
                     // Chép nhật ký (logcat) của chính app để gửi khi báo lỗi kết nối; không cần cắm máy tính.
                     TextButton(onClick = {
-                        val log = runCatching {
-                            val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "600", "*:W"))
-                            process.inputStream.bufferedReader().use { it.readText() }
-                        }.getOrElse { "Cannot read log: ${it.message}" }
+                        val log = readAppLog()
                         clipboardManager.setText(AnnotatedString(log))
                         Toast.makeText(context, "Log copied (${log.length} chars)", Toast.LENGTH_SHORT).show()
                     }) {
@@ -844,3 +852,9 @@ private fun TexturePackCard() {
         }
     }
 }
+
+/** Đọc khoảng 600 dòng cảnh báo/lỗi gần nhất trong logcat của chính app (không cần quyền đặc biệt). */
+private fun readAppLog(): String = runCatching {
+    val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "600", "*:W"))
+    process.inputStream.bufferedReader().use { it.readText() }
+}.getOrElse { "Cannot read log: ${it.message}" }
