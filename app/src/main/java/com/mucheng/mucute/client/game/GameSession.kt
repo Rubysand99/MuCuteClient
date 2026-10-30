@@ -1,5 +1,6 @@
 package com.mucheng.mucute.client.game
 
+import android.util.Log
 import com.mucheng.mucute.client.application.AppContext
 import com.mucheng.mucute.client.game.entity.LocalPlayer
 import com.mucheng.mucute.client.game.world.Level
@@ -9,6 +10,10 @@ import org.cloudburstmc.protocol.bedrock.packet.TextPacket
 
 @Suppress("MemberVisibilityCanBePrivate")
 class GameSession(val muCuteRelaySession: MuCuteRelaySession) : ComposedPacketHandler {
+
+    private companion object {
+        const val TAG = "GameSession"
+    }
 
     val localPlayer = LocalPlayer(this)
 
@@ -29,26 +34,37 @@ class GameSession(val muCuteRelaySession: MuCuteRelaySession) : ComposedPacketHa
     }
 
     override fun beforePacketBound(packet: BedrockPacket): Boolean {
-        localPlayer.onPacketBound(packet)
-        level.onPacketBound(packet)
+        // Lỗi trong code xử lý (module, Level...) không được làm đứt kết nối: ghi log rồi cho packet đi tiếp.
+        try {
+            localPlayer.onPacketBound(packet)
+            level.onPacketBound(packet)
+        } catch (e: Throwable) {
+            Log.e(TAG, "State tracking failed on ${packet.javaClass.simpleName}", e)
+        }
 
         val interceptablePacket = InterceptablePacket(packet)
 
         for (module in ModuleManager.activeModules) {
-            module.beforePacketBound(interceptablePacket)
+            try {
+                module.beforePacketBound(interceptablePacket)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Module ${module.name} failed on ${packet.javaClass.simpleName}", e)
+            }
             if (interceptablePacket.isIntercepted) {
                 return true
             }
         }
-
-       // displayClientMessage("[MuCuteClient] $versionName", TextPacket.Type.TIP)
 
         return false
     }
 
     override fun afterPacketBound(packet: BedrockPacket) {
         for (module in ModuleManager.activeModules) {
-            module.afterPacketBound(packet)
+            try {
+                module.afterPacketBound(packet)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Module ${module.name} failed after ${packet.javaClass.simpleName}", e)
+            }
         }
     }
 
