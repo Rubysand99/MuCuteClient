@@ -19,6 +19,14 @@ jobs:
         distribution: 'temurin'
         cache: gradle
         
+    - name: Build latest MuCuteRelay from source (jar trong app/libs cu, chi ho tro toi 1.21.70)
+      run: |
+        git clone --depth 1 https://github.com/OpenMITM/MuCuteRelay.git "$RUNNER_TEMP/MuCuteRelay"
+        cd "$RUNNER_TEMP/MuCuteRelay"
+        chmod +x gradlew
+        ./gradlew uberJar --no-daemon
+        cp build/libs/MuCuteRelay.jar "$GITHUB_WORKSPACE/app/libs/MuCuteRelay.jar"
+        unzip -p "$GITHUB_WORKSPACE/app/libs/MuCuteRelay.jar" protocol_mapping.txt | tail -2
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build Debug APK with Gradle
