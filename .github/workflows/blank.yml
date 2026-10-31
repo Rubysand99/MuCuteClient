@@ -22,6 +22,7 @@ jobs:
     - name: Build latest MuCuteRelay from source (jar trong app/libs cu, chi ho tro toi 1.21.70)
       run: |
         git clone --depth 1 https://github.com/OpenMITM/MuCuteRelay.git "$RUNNER_TEMP/MuCuteRelay"
+        bash "$GITHUB_WORKSPACE/scripts/patch-relay-android.sh" "$RUNNER_TEMP/MuCuteRelay"
         cd "$RUNNER_TEMP/MuCuteRelay"
         chmod +x gradlew
         ./gradlew uberJar --no-daemon
